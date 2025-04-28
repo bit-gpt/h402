@@ -589,7 +589,11 @@ async function verifySignAndSendTransactionPayload(
       return { isValid: false, errorMessage: "Invalid signature" };
     }
 
-    return { isValid: true, type: "transaction" };
+    return {
+      isValid: true,
+      type: "transaction",
+      txHash: payload.transactionHash,
+    };
   } catch (error) {
     return {
       isValid: false,

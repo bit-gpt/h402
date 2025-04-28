@@ -22,7 +22,7 @@ interface H402Config {
   /** The URL of the facilitator endpoint */
   facilitatorUrl: string;
   /** The error handler to use for the middleware */
-  onError?: (error: string) => NextResponse;
+  onError?: (error: string, request: NextRequest) => NextResponse;
   /** The success handler to use for the middleware */
   onSuccess?: (
     request: NextRequest,
@@ -65,13 +65,14 @@ export function h402Middleware(config: H402Config) {
   } = config;
   const { verify, settle } = utils.useFacilitator(facilitatorUrl);
 
-  const defaultErrorHandler = (error: string) => {
-    const redirectUrl = new URL(paywallRoute);
+  const defaultErrorHandler = (request: NextRequest) => {
+    const redirectUrl = new URL(paywallRoute, request.url);
 
     return NextResponse.redirect(redirectUrl, { status: 402 });
   };
 
-  const handleError = onError || defaultErrorHandler;
+  const handleError = (error: string, request: NextRequest) =>
+    onError ? onError(error, request) : defaultErrorHandler(request);
 
   return async function handler(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
@@ -83,13 +84,13 @@ export function h402Middleware(config: H402Config) {
     const payment = request.nextUrl.searchParams.get("h402-payment");
 
     if (!payment) {
-      return handleError("Payment Required");
+      return handleError("Payment Required", request);
     }
 
     const verifyResponse = await verify(payment, paymentDetails);
 
     if (verifyResponse.error) {
-      return handleError(verifyResponse.error);
+      return handleError(verifyResponse.error, request);
     }
 
     if (onSuccess) {
@@ -102,7 +103,7 @@ export function h402Middleware(config: H402Config) {
       const settleResponse = await settle(payment, paymentDetails);
 
       if (settleResponse.error) {
-        return handleError(settleResponse.error);
+        return handleError(settleResponse.error, request);
       }
 
       if (onSuccess) {
