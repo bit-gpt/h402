@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@bit-gpt/h402": "^0.0.11",
+    "@bit-gpt/h402": "workspace:*",
     "fs": "^0.0.1-security",
     "next": "15.3.1",
     "openai": "^4.96.0",

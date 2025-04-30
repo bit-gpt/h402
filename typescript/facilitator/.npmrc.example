@@ -1,3 +1,0 @@
-engine-strict=true
-//npm.pkg.github.com/:_authToken=${NPM_TOKEN}
-@bit-gpt:registry=https://npm.pkg.github.com

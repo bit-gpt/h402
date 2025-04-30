@@ -1,0 +1,23 @@
+{
+  "name": "h402-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "BitGPT's 402 open protocol for blockchain-native payments",
+  "scripts": {
+    "build:package": "pnpm --filter @bit-gpt/h402 build",
+    "dev:example": "pnpm build:package && pnpm --filter example dev",
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean",
+    "test": "pnpm -r test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bit-gpt/402.git"
+  },
+  "author": "BitGPT",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/bit-gpt/402/issues"
+  },
+  "homepage": "https://github.com/bit-gpt/402#readme"
+}

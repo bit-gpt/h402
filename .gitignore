@@ -3,7 +3,10 @@
 node_modules/
 dist/
 .DS_Store
-.npmrc
+# Allow root .npmrc for pnpm workspace configuration
+# .npmrc
+# But ignore .npmrc files in subdirectories that might contain tokens
+*/**/.npmrc
 
 ### JetBrains template
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
@@ -83,4 +86,3 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
-

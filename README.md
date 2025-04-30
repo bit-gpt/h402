@@ -7,7 +7,6 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 We've released [402pay](https://402pay.com) powered by the HTTP 402 protocol to showcase what is possible.
 
 ```js
-
 // This is an example of how our package can be integrated
 // You can check out the sections below to find more implementation options
 // Or reach out to us at hello@bitgpt.xyz
@@ -33,13 +32,16 @@ This protocol builds on top of the scheme from [x402](https://github.com/coinbas
 Currently, h402 supports:
 
 Networks:
+
 - All EVM-compatible chains (Ethereum, Binance Smart Chain, Base, etc.)
 
 Payment Types:
+
 - Signed payloads (permit-based tokens like USDC)
 - Broadcasted transactions (for tokens like USDT and native currencies like BNB/ETH)
 
 Payment schemes:
+
 - `exact`: Fixed amount payments with predefined values
 
 We're actively expanding support for additional networks, tokens, and payment schemes. See our [roadmap](#roadmap) for upcoming implementations including Solana, Bitcoin, and new payment models like `upto`, `streamed`, and `subscription`.
@@ -53,10 +55,12 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 We decided to create `h402`, which simply stands for `HTTP 402`, based on the open schemes provided by [x402](https://github.com/coinbase/x402).
 
 The reason for spinning off into a separate project comes down to a few key points
+
 - First, we needed to move fast; this protocol is and will be critical for our payment platform, and building independently allows us to iterate quickly
 - Second, maintaining a separate implementation gives us the freedom to make protocol decisions that aren’t influenced by the priorities of BASE (and by extension, USDC), whose development may naturally lean toward optimizing for their internal use cases or preferred chains, rather than creating a broadly compatible solution for other blockchains.
 
 Another major factor is the need to support features not currently handled by x402:
+
 - For example, x402 assumes the presence of permit-based tokens (EIP-2612), which USDC supports, but USDT doesn't
 - We also needed to implement post-broadcast validations for cryptocurrencies like Bitcoin
 - And most importantly, we required polling-based systems, which are essential both as fallback mechanisms for payment providers and for any setup that relies on standalone address verification, rather than a one-size-fits-all signed payload + broadcast approach
@@ -71,6 +75,84 @@ In the `example/` folder we've provided a simple demo of a Next webapp integrati
 
 It works utilizing this package and its functionalities and provides a quick example of how such an integration can be made, including the UI for the wallet connection & send.
 
+## Development Setup
+
+This project is set up as a pnpm monorepo workspace, allowing for seamless development across multiple packages.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (see `.nvmrc` for version)
+- [pnpm](https://pnpm.io/) package manager
+
+### Workspace Structure
+
+The monorepo contains the following workspaces:
+
+- `typescript/package`: The main `@bit-gpt/h402` package
+- `typescript/example`: Example Next.js application using the package
+- `typescript/facilitator`: Facilitator implementation
+
+### Getting Started
+
+1. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+2. Build the main package:
+
+   ```bash
+   pnpm build:package
+   ```
+
+3. Run the example application:
+   ```bash
+   pnpm dev:example
+   ```
+
+### Development Workflow
+
+The monorepo is configured with the following workflow:
+
+1. **Dependency Management**:
+
+   - All dependencies are hoisted to the root `node_modules` directory
+   - Workspace packages reference each other using `workspace:*` syntax
+   - No need for manual linking between packages
+
+2. **Build Process**:
+
+   - `pnpm build`: Builds all packages in the monorepo (use when you need to build everything)
+   - `pnpm build:package`: Builds only the main `@bit-gpt/h402` package (sufficient for most development)
+   - `pnpm clean`: Cleans build artifacts from all packages
+
+3. **Development Commands**:
+
+   - `pnpm dev:example`: Builds the main package and starts the example Next.js application
+   - Changes to the package code require rebuilding before they're available to the example
+
+4. **Configuration**:
+   - The root `.npmrc` file contains important configuration for the monorepo
+   - `pnpm-workspace.yaml` defines the workspace package locations
+
+### Adding New Packages
+
+To add a new package to the monorepo:
+
+1. Create a new directory in the appropriate location
+2. Add a `package.json` with the package details
+3. Add the package path to `pnpm-workspace.yaml`
+4. Run `pnpm install` to update the workspace
+
+### Troubleshooting
+
+If you encounter "Module not found" errors when running the example:
+
+1. Make sure all packages are built: `pnpm build`
+2. Check that the package exports are correctly defined in the package.json
+3. Verify that the imports in your code match the export paths
+
 ## Current schemes and types
 
 The only available scheme for now is `exact`, the types are the following.
@@ -80,7 +162,6 @@ All the types can be found [here](https://github.com/bit-gpt/h402/tree/main/type
 ### Protocol
 
 ```typescript
-
 type PaymentDetails = {
   // Scheme of the payment protocol to use
   scheme: string;
@@ -141,13 +222,11 @@ type PaymentPayload<T> = {
   // Identifier of what the user pays for
   resource: string;
 };
-
 ```
 
 ### Facilitator
 
 ```typescript
-
 type FacilitatorRequest = {
   paymentHeader: string;
   paymentDetails: PaymentDetails;
@@ -171,13 +250,11 @@ type VerifyResponse = {
   txHash?: string;
   errorMessage?: string | undefined;
 };
-
 ```
 
 ### EVM `exact`
 
 ```typescript
-
 type NativeTransferParameters = {
   from: Hex;
   to: Hex;
@@ -252,7 +329,6 @@ type AuthorizationPaymentPayload =
 
 type SignAndSendTransactionPaymentPayload =
   ImportedPaymentPayloadType<SignAndSendTransactionPayload>;
-
 ```
 
 ## FAQs

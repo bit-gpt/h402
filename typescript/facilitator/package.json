@@ -11,7 +11,7 @@
     "lint:check": "eslint . --ext .ts"
   },
   "dependencies": {
-    "@bit-gpt/h402": "^0.0.10",
+    "@bit-gpt/h402": "workspace:*",
     "dotenv": "^16.4.7",
     "express": "^4.18.2",
     "swagger-ui-express": "^5.0.1"
