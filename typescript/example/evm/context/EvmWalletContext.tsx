@@ -52,6 +52,7 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(async (walletType: WalletType) => {
     try {
+      console.log("EvmWalletContext - Connecting wallet:", walletType);
       setStatusMessage("Connecting wallet...");
 
       if (typeof window === "undefined" || !window.ethereum) {
@@ -76,16 +77,22 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
         connector = injected({ shimDisconnect: true });
       }
 
+      console.log("EvmWalletContext - Using connector:", walletType);
       const result = await connect(config, { connector, chainId: bsc.id });
 
       if (!result.accounts?.[0]) {
         throw new Error("Please select an account in your wallet");
       }
 
+      console.log("EvmWalletContext - Connected account:", result.accounts[0]);
       const baseClient = await getWalletClient(config, {
         account: result.accounts[0],
         chainId: bsc.id,
       });
+
+      if (!baseClient) {
+        throw new Error("Failed to get wallet client");
+      }
 
       // Extend with read-only public actions.
       // TS structurally mismatches the two `call` overloads, so we cast via `unknown`.
@@ -101,11 +108,12 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
         throw new Error("Please switch to BSC network");
       }
 
+      console.log("EvmWalletContext - Wallet connected successfully:", address);
       setWalletClient(client);
       setConnectedAddress(address);
       setStatusMessage("Wallet connected!");
     } catch (error) {
-      console.error("Connection error:", error);
+      console.error("EvmWalletContext - Connection error:", error);
       let message = "Failed to connect wallet";
 
       if (error instanceof Error) {
@@ -124,12 +132,44 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const disconnectWallet = useCallback(async () => {
+    console.log("EvmWalletContext - Disconnecting wallet");
     try {
-      await disconnect(config);
-    } finally {
+      // Try to disconnect using wagmi, but don't wait for it to complete
+      // as it might fail if the wallet doesn't support disconnection
+      disconnect(config).catch(err => {
+        console.warn("Disconnect from wagmi failed:", err);
+      });
+      
+      // Always clear the local state regardless of wagmi disconnect result
       setWalletClient(null);
       setConnectedAddress("");
-      setStatusMessage("");
+      setStatusMessage("Wallet disconnected");
+      
+      // For MetaMask and some other wallets, we need to manually clear localStorage
+      // to ensure the wallet is fully disconnected
+      if (typeof window !== "undefined") {
+        // Clear any wallet-related localStorage items
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes("wagmi") || key.includes("wallet"))) {
+            keysToRemove.push(key);
+          }
+        }
+        
+        // Remove the keys in a separate loop to avoid issues with changing localStorage during iteration
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+        });
+      }
+      
+      console.log("EvmWalletContext - Wallet disconnected successfully");
+    } catch (error) {
+      console.error("EvmWalletContext - Disconnect error:", error);
+      // Even if there's an error, still clear the local state
+      setWalletClient(null);
+      setConnectedAddress("");
+      setStatusMessage("Wallet disconnected (with errors)");
     }
   }, []);
 

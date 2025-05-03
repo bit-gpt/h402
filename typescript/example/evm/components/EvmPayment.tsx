@@ -59,13 +59,24 @@ const EvmPayment = ({
     try {
       console.log("EvmPayment - Disconnecting wallet");
       await disconnectWallet();
-      setStatusMessage("Wallet disconnected");
-      // Wallet disconnected successfully
+      setShowWalletOptions(false);
     } catch (error) {
       console.error("Disconnect error:", error);
       setStatusMessage("Failed to disconnect wallet");
     }
   }, [disconnectWallet, setStatusMessage]);
+
+  // Handle wallet option selection
+  const handleWalletSelection = useCallback(async (walletType: string) => {
+    console.log("EvmPayment - Selected wallet option:", walletType);
+    try {
+      setShowWalletOptions(false);
+      await connectWallet(walletType as any);
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      setStatusMessage("Failed to connect wallet");
+    }
+  }, [connectWallet, setStatusMessage]);
 
   // Handle EVM payment
   const handlePayment = useCallback(async () => {
@@ -134,11 +145,7 @@ const EvmPayment = ({
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
         options={showWalletOptions ? EVM_WALLET_OPTIONS : []}
-        onSelectOption={(option) => {
-          console.log("EvmPayment - Selected wallet option:", option);
-          connectWallet(option);
-          setShowWalletOptions(false);
-        }}
+        onSelectOption={handleWalletSelection}
         bgClass="bg-blue-600 hover:bg-blue-700"
         heading="Please connect your wallet to continue"
         subheading="Make sure you are on the BSC network"

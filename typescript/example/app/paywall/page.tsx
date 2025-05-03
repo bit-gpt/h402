@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useCallback, useContext, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import PaymentSelector from "@/components/PaymentSelector";
 import EvmPayment from "@/evm/components/EvmPayment";
 import SolanaPayment from "@/solana/components/SolanaPayment";
 import ImagePromptInput from "@/components/ImagePromptInput";
 import { useEvmWallet } from "@/evm/context/EvmWalletContext";
-import { SelectedWalletAccountContext } from "@/solana/context/SelectedWalletAccountContext";
 
 const MIN_PROMPT_LENGTH = 3;
 
@@ -19,10 +18,10 @@ export default function Paywall() {
   const [imagePrompt, setImagePrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [evmWalletConnected, setEvmWalletConnected] = useState(false);
+  const [solanaWalletConnected, setSolanaWalletConnected] = useState(false);
   
   // Get wallet connection state based on selected payment method
   const { connectedAddress } = useEvmWallet();
-  const [selectedAccount] = useContext(SelectedWalletAccountContext);
   
   // Update EVM wallet connection state when address changes
   useEffect(() => {
@@ -33,13 +32,13 @@ export default function Paywall() {
   // Determine if wallet is connected based on payment method
   const walletConnected = paymentMethod === "evm" 
     ? evmWalletConnected 
-    : !!selectedAccount;
+    : solanaWalletConnected;
     
   console.log("Wallet connected state:", { 
     paymentMethod, 
     evmWalletConnected, 
     connectedAddress, 
-    solanaWalletConnected: !!selectedAccount,
+    solanaWalletConnected,
     walletConnected
   });
 
@@ -62,6 +61,12 @@ export default function Paywall() {
     },
     [isProcessing]
   );
+
+  // Handler for Solana wallet connection status
+  const handleSolanaWalletConnectionChange = useCallback((isConnected: boolean) => {
+    console.log("Solana wallet connection changed:", isConnected);
+    setSolanaWalletConnected(isConnected);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full">
@@ -95,6 +100,7 @@ export default function Paywall() {
             prompt={imagePrompt}
             isProcessing={isProcessing}
             setIsProcessing={setIsProcessing}
+            onWalletConnectionChange={handleSolanaWalletConnectionChange}
           />
         )}
 
