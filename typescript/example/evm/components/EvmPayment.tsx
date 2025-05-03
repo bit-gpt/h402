@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
 import { createPayment } from "@bit-gpt/h402";
 import { paymentDetails } from "@/config/paymentDetails";
-import { useEvmWallet } from "@/evm/hooks/useEvmWallet";
+import { useEvmWallet } from "@/evm/context/EvmWalletContext";
 import { WalletPanel } from "@/components/WalletPanel";
 import { EVM_WALLET_OPTIONS } from "@/config/walletOptions";
 import { mapTxError } from "@/lib/mapTxError";
@@ -34,6 +34,15 @@ const EvmPayment = ({
   } = useEvmWallet();
 
   const [showWalletOptions, setShowWalletOptions] = useState(false);
+  
+  // Debug: Log wallet connection state changes
+  useEffect(() => {
+    console.log("EvmPayment - Wallet state changed:", { 
+      walletClient: !!walletClient,
+      connectedAddress,
+      statusMessage
+    });
+  }, [walletClient, connectedAddress, statusMessage]);
 
   // Check if payment can be processed
   const canSubmitPayment = useCallback(() => {
@@ -42,11 +51,13 @@ const EvmPayment = ({
 
   // Wallet connection handlers
   const handleConnect = useCallback(() => {
+    console.log("EvmPayment - Showing wallet options");
     setShowWalletOptions(true);
   }, []);
 
   const handleDisconnect = useCallback(async () => {
     try {
+      console.log("EvmPayment - Disconnecting wallet");
       await disconnectWallet();
       setStatusMessage("Wallet disconnected");
       // Wallet disconnected successfully
@@ -123,7 +134,11 @@ const EvmPayment = ({
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
         options={showWalletOptions ? EVM_WALLET_OPTIONS : []}
-        onSelectOption={connectWallet}
+        onSelectOption={(option) => {
+          console.log("EvmPayment - Selected wallet option:", option);
+          connectWallet(option);
+          setShowWalletOptions(false);
+        }}
         bgClass="bg-blue-600 hover:bg-blue-700"
         heading="Please connect your wallet to continue"
         subheading="Make sure you are on the BSC network"

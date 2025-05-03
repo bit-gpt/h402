@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import {
   WalletClient,
   PublicActions,
@@ -14,31 +16,41 @@ import {
 } from "wagmi/connectors";
 import { getWalletClient } from "@wagmi/core";
 import { config } from "../config/wagmi";
-import { useConnectionState } from "./useConnectionState";
 
+// Export the WalletType for use in other components
 export type WalletType = "metamask" | "coinbase" | "rabby" | "trust" | "walletconnect";
 
-interface UseWalletReturn {
+interface EvmWalletContextType {
   walletClient: (WalletClient & PublicActions) | null;
   connectedAddress: string;
   statusMessage: string;
-  setStatusMessage: React.Dispatch<React.SetStateAction<string>>;
+  setStatusMessage: (message: string) => void;
   connectWallet: (walletType: WalletType) => Promise<void>;
   disconnectWallet: () => Promise<void>;
 }
 
-export function useEvmWallet(): UseWalletReturn {
+// Create context with default values
+const EvmWalletContext = createContext<EvmWalletContextType>({
+  walletClient: null,
+  connectedAddress: "",
+  statusMessage: "",
+  setStatusMessage: () => {},
+  connectWallet: async () => {},
+  disconnectWallet: async () => {},
+});
+
+// Hook to use the EVM wallet context
+export const useEvmWallet = () => useContext(EvmWalletContext);
+
+// Provider component for the EVM wallet context
+export function EvmWalletProvider({ children }: { children: ReactNode }) {
   const [walletClient, setWalletClient] = useState<
     (WalletClient & PublicActions) | null
   >(null);
-  const {
-    connectedAddress,
-    setConnectedAddress,
-    statusMessage,
-    setStatusMessage,
-  } = useConnectionState();
+  const [connectedAddress, setConnectedAddress] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
 
-  const connectWallet = async (walletType: WalletType) => {
+  const connectWallet = useCallback(async (walletType: WalletType) => {
     try {
       setStatusMessage("Connecting wallet...");
 
@@ -109,9 +121,9 @@ export function useEvmWallet(): UseWalletReturn {
       }
       setStatusMessage(message);
     }
-  };
+  }, []);
 
-  const disconnectWallet = async () => {
+  const disconnectWallet = useCallback(async () => {
     try {
       await disconnect(config);
     } finally {
@@ -119,9 +131,10 @@ export function useEvmWallet(): UseWalletReturn {
       setConnectedAddress("");
       setStatusMessage("");
     }
-  };
+  }, []);
 
-  return {
+  // Create the context value
+  const contextValue = {
     walletClient,
     connectedAddress,
     statusMessage,
@@ -129,4 +142,10 @@ export function useEvmWallet(): UseWalletReturn {
     connectWallet,
     disconnectWallet,
   };
+
+  return (
+    <EvmWalletContext.Provider value={contextValue}>
+      {children}
+    </EvmWalletContext.Provider>
+  );
 }

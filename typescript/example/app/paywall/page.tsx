@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useContext, useEffect } from "react";
 import PaymentSelector from "@/components/PaymentSelector";
 import EvmPayment from "@/evm/components/EvmPayment";
 import SolanaPayment from "@/solana/components/SolanaPayment";
 import ImagePromptInput from "@/components/ImagePromptInput";
+import { useEvmWallet } from "@/evm/context/EvmWalletContext";
+import { SelectedWalletAccountContext } from "@/solana/context/SelectedWalletAccountContext";
 
 const MIN_PROMPT_LENGTH = 3;
 
@@ -16,7 +18,30 @@ export default function Paywall() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("evm");
   const [imagePrompt, setImagePrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const walletConnected = true; // Assuming wallet is connected for this example
+  const [evmWalletConnected, setEvmWalletConnected] = useState(false);
+  
+  // Get wallet connection state based on selected payment method
+  const { connectedAddress } = useEvmWallet();
+  const [selectedAccount] = useContext(SelectedWalletAccountContext);
+  
+  // Update EVM wallet connection state when address changes
+  useEffect(() => {
+    console.log("EVM connectedAddress:", connectedAddress);
+    setEvmWalletConnected(!!connectedAddress);
+  }, [connectedAddress]);
+  
+  // Determine if wallet is connected based on payment method
+  const walletConnected = paymentMethod === "evm" 
+    ? evmWalletConnected 
+    : !!selectedAccount;
+    
+  console.log("Wallet connected state:", { 
+    paymentMethod, 
+    evmWalletConnected, 
+    connectedAddress, 
+    solanaWalletConnected: !!selectedAccount,
+    walletConnected
+  });
 
   // Check if prompt is valid
   const isPromptValid = useCallback(() => {

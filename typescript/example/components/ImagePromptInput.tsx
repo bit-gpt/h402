@@ -19,6 +19,7 @@ const ImagePromptInput: React.FC<ImagePromptInputProps> = ({
   paymentMethod,
   walletConnected,
 }) => {
+  console.log("//walletConnected", walletConnected);
   if (!walletConnected) {
     return null;
   }

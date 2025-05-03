@@ -5,7 +5,7 @@ import trustIcon from "../assets/wallets/trustwallet.svg";
 import walletConnectIcon from "../assets/wallets/walletConnect.svg";
 import coinbaseIcon from "../assets/wallets/coinbase.svg";
 import phantomIcon from "../assets/wallets/phantom.svg";
-import { WalletType } from "../evm/hooks/useEvmWallet";
+import { WalletType } from "../evm/context/EvmWalletContext";
 
 // Update the type definition to include SolanaWalletId
 export type GenericWalletId = WalletType | "phantom" | string;
