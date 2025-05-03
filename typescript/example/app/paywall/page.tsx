@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import PaymentSelector from "./PaymentSelector";
-import EvmPayment from "./EvmPayment";
-import SolanaPayment from "./SolanaPayment";
-import ImagePromptInput from "./ImagePromptInput";
+import PaymentSelector from "@/components/PaymentSelector";
+import EvmPayment from "@/evm/components/EvmPayment";
+import SolanaPayment from "@/solana/components/SolanaPayment";
+import ImagePromptInput from "@/components/ImagePromptInput";
 
 const MIN_PROMPT_LENGTH = 3;
 
@@ -29,11 +29,14 @@ export default function Paywall() {
   }, []);
 
   // Method selection handler
-  const handleMethodChange = useCallback((method: PaymentMethod) => {
-    if (!isProcessing) {
-      setPaymentMethod(method);
-    }
-  }, [isProcessing]);
+  const handleMethodChange = useCallback(
+    (method: PaymentMethod) => {
+      if (!isProcessing) {
+        setPaymentMethod(method);
+      }
+    },
+    [isProcessing]
+  );
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full">

@@ -13,6 +13,7 @@
     "@solana-program/token": "^0.5.1",
     "@solana/kit": "^2.1.0",
     "@solana/react": "^2.1.0",
+    "@wallet-standard/react": "^1.0.1",
     "bs58": "^6.0.0",
     "fs": "^0.0.1-security",
     "next": "15.3.1",

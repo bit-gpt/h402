@@ -1,11 +1,11 @@
 import { StaticImageData } from "next/image";
-import metamaskIcon from "../app/image/wallets/metamask.svg";
-import rabbyIcon from "../app/image/wallets/rabby.svg";
-import trustIcon from "../app/image/wallets/trustwallet.svg";
-import walletConnectIcon from "../app/image/wallets/walletConnect.svg";
-import coinbaseIcon from "../app/image/wallets/coinbase.svg";
-import phantomIcon from "../app/image/phantom.svg";
-import { WalletType } from "../hooks/useEvmWallet";
+import metamaskIcon from "../assets/wallets/metamask.svg";
+import rabbyIcon from "../assets/wallets/rabby.svg";
+import trustIcon from "../assets/wallets/trustwallet.svg";
+import walletConnectIcon from "../assets/wallets/walletConnect.svg";
+import coinbaseIcon from "../assets/wallets/coinbase.svg";
+import phantomIcon from "../assets/wallets/phantom.svg";
+import { WalletType } from "../evm/hooks/useEvmWallet";
 
 // Update the type definition to include SolanaWalletId
 export type GenericWalletId = WalletType | "phantom" | string;

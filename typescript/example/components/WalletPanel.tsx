@@ -1,3 +1,4 @@
+import React from 'react';
 import Image from 'next/image';
 import WalletButton from "./WalletButton";
 import { WalletOption, GenericWalletId } from "../config/walletOptions";
@@ -17,7 +18,7 @@ interface Props<T extends GenericWalletId> {
   disabled?: boolean;
 }
 
-export function WalletPanel<T extends GenericWalletId>({
+function WalletPanel<T extends GenericWalletId>({
   connected,
   connectedAddress,
   statusMessage,
@@ -107,3 +108,5 @@ export function WalletPanel<T extends GenericWalletId>({
     </div>
   );
 }
+
+export { WalletPanel };

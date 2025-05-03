@@ -5,7 +5,7 @@ import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
 import { createPayment } from "@bit-gpt/h402";
 import { paymentDetails } from "@/config/paymentDetails";
-import { useEvmWallet } from "@/hooks/useEvmWallet";
+import { useEvmWallet } from "@/evm/hooks/useEvmWallet";
 import { WalletPanel } from "@/components/WalletPanel";
 import { EVM_WALLET_OPTIONS } from "@/config/walletOptions";
 import { mapTxError } from "@/lib/mapTxError";
