@@ -5,19 +5,21 @@ import { createPayment } from "@bit-gpt/h402";
 import { solanaPaymentDetails } from "@/config/paymentDetails";
 import { PaymentClient } from "@bit-gpt/h402/types";
 import { mapTxError } from "@/lib/mapTxError";
-import { ConnectedAccount } from "@/solana/context/SolanaWalletContext";
+import { UiWallet } from "@wallet-standard/react";
 
 interface TransactionProcessorProps {
   prompt: string;
-  connectedAccount: ConnectedAccount | null;
-  selectedWallet: any | null;
+  connectedAccount: {
+    address: string;
+    publicKey: Uint8Array | readonly number[];
+  } | null;
+  selectedWallet: UiWallet | null;
   onTransactionStart: () => void;
   onTransactionSubmitted: (txHash: string) => void;
   onTransactionError: (error: string) => void;
 }
 
 export const useSolanaTransactionProcessor = ({
-  prompt,
   connectedAccount,
   selectedWallet,
   onTransactionStart,
@@ -101,7 +103,6 @@ export const useSolanaTransactionProcessor = ({
     }
   }, [
     connectedAccount,
-    prompt,
     selectedWallet,
     onTransactionStart,
     onTransactionSubmitted,

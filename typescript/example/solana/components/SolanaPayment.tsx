@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import {
-  SolanaWalletProvider,
-  useSolanaWallet,
-} from "@/solana/context/SolanaWalletContext";
+import { useState, useContext } from "react";
+import { SelectedWalletAccountProvider, SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
 import { useSolanaTransactionProcessor } from "../hooks/useSolanaTransactionProcessor";
 import { SolanaPaymentUI } from "./SolanaPaymentUI";
+import { UiWallet, useWallets } from "@wallet-standard/react";
 
 interface SolanaPaymentProps {
   isPromptValid: () => boolean;
@@ -26,14 +24,26 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
   const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [txHash, setTxHash] = useState("");
 
-  // Get wallet context - only use what we need
-  const [{ account: connectedAccount, wallet: selectedWallet }] =
-    useSolanaWallet();
+  // Get selected wallet account from context
+  const [selectedAccount] = useContext(SelectedWalletAccountContext);
+  
+  // Get all available wallets
+  const wallets = useWallets();
+  
+  // Find the wallet that owns the selected account
+  const selectedWallet = selectedAccount
+    ? wallets.find(wallet => 
+        wallet.accounts.some(account => account.address === selectedAccount.address)
+      ) as UiWallet
+    : null;
 
   // Transaction processor
   const { createAndSubmitPayment } = useSolanaTransactionProcessor({
     prompt,
-    connectedAccount,
+    connectedAccount: selectedAccount ? {
+      address: selectedAccount.address,
+      publicKey: selectedAccount.publicKey as unknown as Uint8Array
+    } : null,
     selectedWallet,
     onTransactionStart: () => {
       setIsProcessing(true);
@@ -57,7 +67,7 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
 
   // Handle payment submission
   const handlePayment = async () => {
-    if (!isPromptValid() || isProcessing || !connectedAccount) {
+    if (!isPromptValid() || isProcessing || !selectedAccount) {
       return;
     }
 
@@ -78,9 +88,9 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
 // Wrapper component that provides the wallet context
 const SolanaPayment: React.FC<SolanaPaymentProps> = (props) => {
   return (
-    <SolanaWalletProvider>
+    <SelectedWalletAccountProvider>
       <SolanaPaymentContent {...props} />
-    </SolanaWalletProvider>
+    </SelectedWalletAccountProvider>
   );
 };
 

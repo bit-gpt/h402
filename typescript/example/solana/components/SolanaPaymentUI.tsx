@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import SolanaWalletPanel from "@/solana/components/SolanaWalletPanel";
-import { SOLANA_WALLET_OPTIONS } from "@/config/walletOptions";
+import { useContext, useState } from "react";
+import { ConnectWalletButton } from "./ConnectWalletButton";
 import TransactionStatus from "../../components/TransactionStatus";
-import { useSolanaWallet } from "@/solana/context/SolanaWalletContext";
+import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
 
 interface SolanaPaymentUIProps {
   isProcessing: boolean;
@@ -21,58 +20,55 @@ export const SolanaPaymentUI: React.FC<SolanaPaymentUIProps> = ({
   paymentStatus,
   txHash,
 }) => {
-  const [{ account, status }, walletActions] = useSolanaWallet();
-  const [showWalletOptions, setShowWalletOptions] = useState(false);
+  const [selectedAccount] = useContext(SelectedWalletAccountContext);
+  const [error, setError] = useState<string | null>(null);
 
-  // Ensure account has the correct type for SolanaWalletPanel
-  const formattedAccount: { address: string; publicKey: Uint8Array } | null = account ? {
-    address: account.address,
-    publicKey: Array.isArray(account.publicKey) 
-      ? new Uint8Array(account.publicKey) 
-      : account.publicKey as Uint8Array
-  } : null;
+  // Handle wallet errors
+  const handleError = (error: Error) => {
+    setError(error.message);
+    // Clear error after 5 seconds
+    setTimeout(() => setError(null), 5000);
+  };
 
   // Check if payment can be submitted
   const canSubmitPayment = () => {
-    return !!account && isPromptValid() && !isProcessing;
-  };
-
-  // Handle wallet connection
-  const handleConnect = async (walletId: string): Promise<void> => {
-    // If a walletId is provided, connect to that wallet directly
-    if (walletId) {
-      return handleWalletSelect(walletId);
-    }
-    // Otherwise, show wallet options
-    setShowWalletOptions(true);
-    return Promise.resolve();
-  };
-
-  // Handle wallet selection
-  const handleWalletSelect = async (walletId: string) => {
-    await walletActions({ type: "connect", payload: walletId });
-    setShowWalletOptions(false);
-  };
-
-  // Handle wallet disconnection
-  const handleDisconnect = async () => {
-    await walletActions({ type: "disconnect" });
+    return !!selectedAccount && isPromptValid() && !isProcessing;
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <SolanaWalletPanel
-        connectedAccount={formattedAccount}
-        statusMessage={status}
-        onConnect={handleConnect}
-        onDisconnect={handleDisconnect}
-        showWalletOptions={showWalletOptions}
-        walletOptions={SOLANA_WALLET_OPTIONS}
-        onWalletSelect={handleWalletSelect}
-        onSubmit={onSubmitPayment}
-        canSubmit={canSubmitPayment()}
-        isProcessing={isProcessing}
-      />
+      {/* Error display */}
+      {error && (
+        <div className="p-3 bg-red-100 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
+
+      {/* Wallet connection section */}
+      <div className="p-4 bg-white rounded-lg shadow">
+        <h3 className="text-lg font-medium mb-3">
+          {selectedAccount ? "Wallet Connected" : "Connect your Solana wallet"}
+        </h3>
+        <p className="text-sm text-gray-600 mb-4">
+          {selectedAccount ? "Ready to pay with Solana" : "Select a wallet to pay with Solana"}
+        </p>
+        
+        <ConnectWalletButton onError={handleError} />
+        
+        {selectedAccount && (
+          <button
+            onClick={onSubmitPayment}
+            className={`mt-4 w-full py-2 px-4 font-medium rounded-lg transition-colors duration-200 ${
+              canSubmitPayment()
+                ? "bg-purple-600 hover:bg-purple-700 text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+            disabled={!canSubmitPayment()}
+          >
+            {isProcessing ? "Processing..." : "Pay with Solana"}
+          </button>
+        )}
+      </div>
 
       {txHash && <TransactionStatus txHash={txHash} status={paymentStatus} />}
     </div>
