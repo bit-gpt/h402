@@ -9,63 +9,37 @@ import { createSolanaRpc } from "@solana/kit";
 export function createProxiedSolanaRpc(): Pick<ReturnType<typeof createSolanaRpc>, 'getLatestBlockhash' | 'getSignatureStatuses' | 'sendTransaction'> {
   const proxyEndpoint = "/api/solana-rpc";
 
-  // This mimics the minimal interface needed by the payment flow and wallet hook
-  return {
-    getLatestBlockhash: () => ({
-      send: async () => {
-        const response = await fetch(proxyEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method: "getLatestBlockhash",
-            params: [],
-          }),
+  // Define the methods we need to support
+  type SupportedMethods = 'getLatestBlockhash' | 'getSignatureStatuses' | 'sendTransaction';
+  
+  // Create a proxy that intercepts all method calls
+  return new Proxy({} as any, {
+    get(_, methodName: string) {
+      // Only handle methods we support
+      if (['getLatestBlockhash', 'getSignatureStatuses', 'sendTransaction'].includes(methodName)) {
+        // Return a function that matches the expected signature for each method
+        return (...args: any[]) => ({
+          send: async () => {
+            const response = await fetch(proxyEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                method: methodName,
+                params: args,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`RPC error: ${response.statusText}`);
+            }
+
+            return response.json();
+          },
         });
-
-        if (!response.ok) {
-          throw new Error(`RPC error: ${response.statusText}`);
-        }
-
-        return response.json();
-      },
-    }),
-
-    getSignatureStatuses: (signatures: unknown[], options?: unknown) => ({
-      send: async () => {
-        const response = await fetch(proxyEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method: "getSignatureStatuses",
-            params: [signatures, options],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`RPC error: ${response.statusText}`);
-        }
-
-        return response.json();
-      },
-    }),
-
-    sendTransaction: (transaction: string) => ({
-      send: async () => {
-        const response = await fetch(proxyEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method: "sendTransaction",
-            params: [transaction],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`RPC error: ${response.statusText}`);
-        }
-
-        return response.json();
-      },
-    }),
-  };
+      }
+      
+      // Return undefined for unsupported methods
+      return undefined;
+    },
+  }) as Pick<ReturnType<typeof createSolanaRpc>, SupportedMethods>;
 }
