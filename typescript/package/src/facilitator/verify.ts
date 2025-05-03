@@ -1,9 +1,11 @@
 import { exact } from "../schemes/index.js";
-import { PaymentDetails, VerifyResponse } from "../types/index.js";
+import { PaymentDetails, VerifyResponse } from "../types";
 import { PublicActions } from "viem";
 import { evm } from "../shared/index.js";
 import { utils } from "./index.js";
 import { parsePaymentDetailsForAmount } from "../shared/parsePaymentDetails.js";
+import { ExactSolanaBroadcastPaymentPayload } from "../types/scheme/exact/solana/index.js";
+import { safeBase64Decode } from "../shared/base64.js";
 
 /**
  * Verifies a payment payload against the provided payment details.
@@ -34,31 +36,57 @@ async function verify(
       client as PublicActions
     );
 
-    const payment = exact.evm.utils.decodePaymentPayload(payload);
-
+    // Use the appropriate handler based on namespace
     switch (paymentDetails.namespace) {
-      case "eip155":
+      case "eip155": {
         if (!evm.isChainSupported(paymentDetails.networkId)) {
           return {
             isValid: false,
             errorMessage: "Unsupported namespace or chain",
           };
         }
-        break;
+
+        const payment = exact.handlers.evm.utils.decodePaymentPayload(payload);
+
+        switch (payment.scheme) {
+          case "exact":
+            return await exact.handlers.evm.verify(client, payment, paymentDetails);
+          default:
+            return {
+              isValid: false,
+              errorMessage: "Unsupported scheme",
+            };
+        }
+      }
+      case "solana": {
+        try {
+          // Decode the base64 payload
+          const decodedPayload = safeBase64Decode(payload);
+          const paymentPayload = JSON.parse(decodedPayload) as ExactSolanaBroadcastPaymentPayload;
+
+          // Verify the scheme
+          if (paymentPayload.scheme !== "exact") {
+            return {
+              isValid: false,
+              errorMessage: "Unsupported scheme for Solana",
+            };
+          }
+
+          // Delegate to the Solana-specific verification handler
+          return await exact.handlers.solana.verify(paymentPayload, paymentDetails);
+        } catch (error) {
+          return {
+            isValid: false,
+            errorMessage: `Error decoding Solana payload: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+      }
       default:
         return {
           isValid: false,
           errorMessage: "Unsupported namespace",
-        };
-    }
-
-    switch (payment.scheme) {
-      case "exact":
-        return await exact.evm.verify(client, payment, paymentDetails);
-      default:
-        return {
-          isValid: false,
-          errorMessage: "Unsupported scheme",
         };
     }
   } catch (error) {

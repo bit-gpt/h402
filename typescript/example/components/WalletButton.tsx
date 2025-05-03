@@ -1,28 +1,36 @@
-import Image, { StaticImageData } from "next/image";
-import { WalletType } from "../hooks/useWallet";
+import { GenericWalletId } from "../config/walletOptions";
 
-interface WalletButtonProps {
-  id: WalletType;
-  icon: StaticImageData;
+interface Props<T extends GenericWalletId> {
+  id: T;
+  icon: React.ReactNode;
   label: string;
-  onClick: (walletType: WalletType) => void | Promise<void>;
+  onClick: (id: T) => void | Promise<void>;
+  disabled?: boolean;
 }
 
-const WalletButton: React.FC<WalletButtonProps> = ({
+export default function WalletButton<T extends GenericWalletId>({
   id,
   icon,
   label,
   onClick,
-}) => {
+  disabled = false,
+}: Props<T>) {
   return (
     <button
+      className={`flex items-center w-full px-4 py-3 rounded-lg border ${
+        disabled
+          ? "border-gray-300 bg-gray-100 cursor-not-allowed"
+          : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+      } transition-colors duration-200`}
       onClick={() => onClick(id)}
-      className="w-full px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg transition-colors duration-200 font-medium flex items-center justify-center cursor-pointer"
+      disabled={disabled}
     >
-      <Image src={icon} alt={label} width={20} height={20} className="mr-2" />
-      <span>{label}</span>
+      <div className="flex-shrink-0 mr-3 w-6 h-6">{icon}</div>
+      <span
+        className={`${disabled ? "text-gray-400" : "text-gray-700 dark:text-gray-300"}`}
+      >
+        {label}
+      </span>
     </button>
   );
-};
-
-export default WalletButton;
+}

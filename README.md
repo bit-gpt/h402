@@ -34,17 +34,19 @@ Currently, h402 supports:
 Networks:
 
 - All EVM-compatible chains (Ethereum, Binance Smart Chain, Base, etc.)
+- Solana (mainnet)
 
 Payment Types:
 
 - Signed payloads (permit-based tokens like USDC)
 - Broadcasted transactions (for tokens like USDT and native currencies like BNB/ETH)
+- Solana transactions with memo (for SOL and SPL tokens)
 
 Payment schemes:
 
 - `exact`: Fixed amount payments with predefined values
 
-We're actively expanding support for additional networks, tokens, and payment schemes. See our [roadmap](#roadmap) for upcoming implementations including Solana, Bitcoin, and new payment models like `upto`, `streamed`, and `subscription`.
+We're actively expanding support for additional networks, tokens, and payment schemes. See our [roadmap](#roadmap) for upcoming implementations including Bitcoin, and new payment models like `upto`, `streamed`, and `subscription`.
 
 ## Protocol
 
@@ -401,7 +403,7 @@ The playground is still under active development. While it currently mocks the p
 - [ ] Add `streamed`
 - [ ] Add `subscription`
 - [ ] Add `postpaid`
-- [ ] Support Solana
+- [x] Support Solana
 - [ ] Support Sui
 - [ ] Support Bitcoin
 - [ ] Support Ripple

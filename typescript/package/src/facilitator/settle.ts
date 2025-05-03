@@ -41,11 +41,11 @@ async function settle(
       client as PublicActions
     );
 
-    const payment = exact.evm.utils.decodePaymentPayload(payload);
+    const payment = exact.handlers.evm.utils.decodePaymentPayload(payload);
 
     switch (payment.scheme) {
       case "exact":
-        return await exact.evm.settle(client, payment, paymentDetails);
+        return await exact.handlers.evm.settle(client, payment, paymentDetails);
       default:
         return { errorMessage: "Unsupported scheme" };
     }

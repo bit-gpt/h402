@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Image from 'next/image';
 
 export default function ImagePage() {
   const [status, setStatus] = useState<"loading" | "error" | "success">(
@@ -66,7 +67,10 @@ function ImageComponent({
 
         if (response.ok) {
           setStatus("success");
-        } else if (response.status === 404 && attemptRef.current < maximumAttempts) {
+        } else if (
+          response.status === 404 &&
+          attemptRef.current < maximumAttempts
+        ) {
           attemptRef.current += 1;
           setTimeout(checkImage, 2000);
         } else {
@@ -80,7 +84,7 @@ function ImageComponent({
     };
 
     checkImage();
-  }, [filename]);
+  }, [filename, setStatus, setError]);
 
   if (status === "error") {
     return (
@@ -106,11 +110,13 @@ function ImageComponent({
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-black relative">
-      <img
+      <Image
         src={`/uploads/${filename}`}
         alt="AI Generated Image"
         className="absolute max-w-full max-h-full object-contain"
         sizes="100vw"
+        fill
+        priority
       />
     </div>
   );

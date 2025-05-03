@@ -13,7 +13,13 @@
     "type": "git",
     "url": "git+https://github.com/bit-gpt/402.git"
   },
-  "keywords": [],
+  "keywords": [
+    "http402",
+    "payments",
+    "blockchain",
+    "evm",
+    "solana"
+  ],
   "author": "BitGPT",
   "license": "Apache-2.0",
   "bugs": {
@@ -40,17 +46,27 @@
       "types": "./dist/middlewares/next/index.d.ts",
       "import": "./dist/middlewares/next/index.js",
       "default": "./dist/middlewares/next/index.js"
+    },
+    "./schemes/exact/solana": {
+      "types": "./dist/schemes/exact/solana/index.d.ts",
+      "import": "./dist/schemes/exact/solana/index.js",
+      "default": "./dist/schemes/exact/solana/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "devDependencies": {
-    "@types/node": "^22.14.1"
+    "@types/node": "^22.15.3"
   },
   "dependencies": {
-    "next": "^15.3.1",
+    "@solana-program/memo": "^0.7.0",
+    "@solana-program/system": "^0.7.0",
+    "@solana-program/token": "^0.5.1",
+    "@solana/kit": "^2.1.0",
+    "bs58": "^6.0.0",
+    "next": "15.3.1",
     "typescript": "^5.8.3",
-    "viem": "^2.27.2"
+    "viem": "^2.28.1"
   }
 }

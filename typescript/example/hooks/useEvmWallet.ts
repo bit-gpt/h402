@@ -14,6 +14,7 @@ import {
 } from "wagmi/connectors";
 import { getWalletClient } from "@wagmi/core";
 import { config } from "../config/wagmi";
+import { useConnectionState } from "./useConnectionState";
 
 export type WalletType = "metamask" | "coinbase" | "rabby" | "trust" | "walletconnect";
 
@@ -26,12 +27,16 @@ interface UseWalletReturn {
   disconnectWallet: () => Promise<void>;
 }
 
-export function useWallet(): UseWalletReturn {
+export function useEvmWallet(): UseWalletReturn {
   const [walletClient, setWalletClient] = useState<
     (WalletClient & PublicActions) | null
   >(null);
-  const [connectedAddress, setConnectedAddress] = useState<string>("");
-  const [statusMessage, setStatusMessage] = useState<string>("");
+  const {
+    connectedAddress,
+    setConnectedAddress,
+    statusMessage,
+    setStatusMessage,
+  } = useConnectionState();
 
   const connectWallet = async (walletType: WalletType) => {
     try {
