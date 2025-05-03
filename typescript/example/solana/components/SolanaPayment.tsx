@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useContext, useEffect, useCallback } from "react";
+import { useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { SelectedWalletAccountProvider, SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
 import { useSolanaTransactionProcessor } from "../hooks/useSolanaTransactionProcessor";
 import { WalletPanel } from "@/components/WalletPanel";
 import TransactionStatus from "@/components/TransactionStatus";
-import { UiWallet, useWallets } from "@wallet-standard/react";
-import { SOLANA_WALLET_OPTIONS } from "@/config/walletOptions";
+import { UiWallet, UiWalletAccount, useConnect, useWallets } from "@wallet-standard/react";
+import { WalletOption } from "@/config/walletOptions";
 
 interface SolanaPaymentProps {
   isPromptValid: () => boolean;
@@ -16,23 +16,59 @@ interface SolanaPaymentProps {
   onWalletConnectionChange?: (isConnected: boolean) => void;
 }
 
+// Component to handle wallet connection
+function WalletConnector({
+  wallet,
+  onConnect,
+  onError,
+}: {
+  wallet: UiWallet;
+  onConnect: (accounts: readonly UiWalletAccount[]) => void;
+  onError: (error: Error) => void;
+}) {
+  const [, connect] = useConnect(wallet);
+
+  // Effect to connect when the component mounts
+  useEffect(() => {
+    const connectWallet = async () => {
+      try {
+        const accounts = await connect();
+        if (accounts && accounts.length > 0) {
+          onConnect(accounts);
+        } else {
+          onError(new Error(`No accounts available in ${wallet.name}`));
+        }
+      } catch (error) {
+        onError(error as Error);
+      }
+    };
+
+    connectWallet();
+  }, [connect, onConnect, onError, wallet.name]);
+
+  return null; // This component doesn't render anything
+}
+
 // Main component that integrates all the pieces
-const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
+function SolanaPaymentContent({
   isPromptValid,
   prompt,
   isProcessing,
   setIsProcessing,
   onWalletConnectionChange,
-}) => {
-  // State for transaction status
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [txHash, setTxHash] = useState("");
+}: SolanaPaymentProps) {
+  // Get the selected wallet account from context
+  const [selectedAccount, setSelectedAccount] = useContext(
+    SelectedWalletAccountContext
+  );
+
+  // State for wallet connection UI
   const [statusMessage, setStatusMessage] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("idle");
+  const [txHash, setTxHash] = useState("");
+  const [selectedWalletForConnection, setSelectedWalletForConnection] = useState<UiWallet | null>(null);
   const [showWalletOptions, setShowWalletOptions] = useState(false);
 
-  // Get selected wallet account from context
-  const [selectedAccount, setSelectedAccount] = useContext(SelectedWalletAccountContext);
-  
   // Get all available wallets
   const wallets = useWallets();
   
@@ -40,7 +76,7 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
   const selectedWallet = selectedAccount
     ? wallets.find(wallet => 
         wallet.accounts.some(account => account.address === selectedAccount.address)
-      ) as UiWallet
+      ) as UiWallet | null
     : null;
 
   // Notify parent component about wallet connection status changes
@@ -50,7 +86,7 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
     }
   }, [selectedAccount, onWalletConnectionChange]);
 
-  // Transaction processor
+  // Initialize the transaction processor
   const { createAndSubmitPayment } = useSolanaTransactionProcessor({
     prompt,
     connectedAccount: selectedAccount ? {
@@ -61,40 +97,44 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
     onTransactionStart: () => {
       setIsProcessing(true);
       setPaymentStatus("processing");
-      setStatusMessage("Processing payment...");
     },
     onTransactionSubmitted: (hash) => {
       setTxHash(hash);
-      setStatusMessage("Transaction submitted!");
-      // We'll consider the transaction as confirmed once we have the hash
-      // The user can check the status on Solana Explorer
-      setTimeout(() => {
-        setPaymentStatus("confirmed");
-        setIsProcessing(false);
-      }, 2000); // Short delay to show processing state
+      setPaymentStatus("paid"); // Using "paid" to match TransactionStatus component
+      setIsProcessing(false);
     },
-    onTransactionError: (errorMessage) => {
-      console.error("Payment error:", errorMessage);
-      setStatusMessage(`Error: ${errorMessage}`);
+    onTransactionError: (error) => {
+      setStatusMessage(`Error: ${error}`);
       setPaymentStatus("failed");
       setIsProcessing(false);
     },
   });
 
-  // Wallet connection handlers
-  const handleConnect = useCallback(async (): Promise<void> => {
-    console.log("SolanaPayment - Showing wallet options");
-    setShowWalletOptions(true);
-    // This function doesn't actually connect directly, it just shows options
-    // The actual connection happens in handleWalletSelection
-    return Promise.resolve();
+  // Handle wallet error
+  const handleWalletError = useCallback((error: Error) => {
+    console.error("Wallet error:", error);
+    setStatusMessage(error.message);
+    setSelectedWalletForConnection(null);
   }, []);
 
+  // Handle successful wallet connection
+  const handleWalletConnect = useCallback((accounts: readonly UiWalletAccount[]) => {
+    if (accounts && accounts.length > 0) {
+      setSelectedAccount(accounts[0]);
+      setStatusMessage("");
+    }
+    setSelectedWalletForConnection(null);
+  }, [setSelectedAccount]);
+
+  // Handle wallet connect button click
+  const handleConnect = useCallback(() => {
+    setShowWalletOptions(true);
+  }, []);
+
+  // Handle wallet disconnect
   const handleDisconnect = useCallback(async (): Promise<void> => {
     try {
-      console.log("SolanaPayment - Disconnecting wallet");
       setSelectedAccount(undefined);
-      setShowWalletOptions(false);
       setStatusMessage("");
       return Promise.resolve();
     } catch (error) {
@@ -104,39 +144,35 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
     }
   }, [setSelectedAccount]);
 
-  // Handle wallet option selection
-  const handleWalletSelection = useCallback(async (walletId: string): Promise<void> => {
-    console.log("SolanaPayment - Selected wallet option:", walletId);
+  // Convert wallet standard wallets to the format expected by WalletPanel
+  const walletOptions: WalletOption<string>[] = useMemo(() => {
+    return wallets.map(wallet => ({
+      id: wallet.name,
+      label: wallet.name,
+      // Convert data URI to StaticImageData format or use a placeholder
+      icon: wallet.icon ? { src: wallet.icon, height: 24, width: 24 } : { src: "/placeholder-wallet-icon.png", height: 24, width: 24 }
+    }));
+  }, [wallets]);
+
+  // Handle wallet selection
+  const handleSelectWallet = useCallback(async (walletId: string): Promise<void> => {
     try {
+      // Find the selected wallet
+      const wallet = wallets.find(w => w.name === walletId);
+      if (!wallet) {
+        throw new Error(`Wallet ${walletId} not found`);
+      }
+      
+      // Store the selected wallet and hide options
+      setSelectedWalletForConnection(wallet);
       setShowWalletOptions(false);
       
-      // Find the wallet by name
-      const wallet = wallets.find(w => w.name.toLowerCase().includes(walletId.toLowerCase()));
-      if (!wallet) {
-        setStatusMessage(`Wallet ${walletId} not found`);
-        return Promise.reject(new Error(`Wallet ${walletId} not found`));
-      }
-      
-      // Connect to the wallet
-      // Note: We'll use the context's setter directly instead of useConnect hook
-      // since React hooks can't be used inside callbacks
-      const accounts = wallet.accounts;
-      if (accounts && accounts.length > 0) {
-        setSelectedAccount(accounts[0]);
-        setStatusMessage("");
-        return Promise.resolve();
-      } else {
-        const error = new Error(`No accounts available in ${wallet.name}`);
-        setStatusMessage(error.message);
-        return Promise.reject(error);
-      }
+      return Promise.resolve();
     } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      const errorMessage = `Failed to connect wallet: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      setStatusMessage(errorMessage);
-      return Promise.reject(new Error(errorMessage));
+      handleWalletError(error as Error);
+      return Promise.reject(error);
     }
-  }, [wallets, setSelectedAccount]);
+  }, [wallets, handleWalletError]);
 
   // Handle payment submission
   const handlePayment = useCallback(async (): Promise<void> => {
@@ -149,49 +185,59 @@ const SolanaPaymentContent: React.FC<SolanaPaymentProps> = ({
   }, [createAndSubmitPayment, isPromptValid, isProcessing, selectedAccount]);
 
   // Check if payment can be processed
-  const canSubmitPayment = useCallback(() => {
-    return !!selectedAccount && isPromptValid() && !isProcessing;
-  }, [selectedAccount, isPromptValid, isProcessing]);
+  const canProcessPayment = selectedAccount && isPromptValid() && !isProcessing;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Wallet Panel */}
+    <div className="space-y-4">
+      {/* Wallet Connector - Only rendered when a wallet is selected for connection */}
+      {selectedWalletForConnection && (
+        <WalletConnector
+          wallet={selectedWalletForConnection}
+          onConnect={handleWalletConnect}
+          onError={handleWalletError}
+        />
+      )}
+
+      {/* Wallet Connection Panel */}
       <WalletPanel
         connected={!!selectedAccount}
         connectedAddress={selectedAccount?.address || ""}
         statusMessage={statusMessage}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
-        options={showWalletOptions ? SOLANA_WALLET_OPTIONS : []}
-        onSelectOption={handleWalletSelection}
+        options={showWalletOptions ? walletOptions : []}
+        onSelectOption={handleSelectWallet}
         bgClass="bg-purple-600 hover:bg-purple-700"
-        heading={selectedAccount ? "Wallet Connected" : "Connect your Solana wallet"}
-        subheading={selectedAccount ? "Ready to pay with Solana" : "Select a wallet to pay with Solana"}
-        disabled={isProcessing}
+        heading="Connect Solana Wallet"
+        subheading="Connect your Solana wallet to pay for image generation"
+        disabled={isProcessing || !!selectedWalletForConnection}
       />
 
       {/* Payment Button */}
       {selectedAccount && (
-        <div className="mt-4">
-          <button
-            onClick={handlePayment}
-            disabled={!canSubmitPayment()}
-            className={`w-full px-4 py-2.5 ${
-              !canSubmitPayment()
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-purple-600 hover:bg-purple-700"
-            } text-white rounded-lg transition-colors duration-200 font-medium`}
-          >
-            {isProcessing ? "Processing..." : "Pay with Solana"}
-          </button>
-        </div>
+        <button
+          onClick={handlePayment}
+          disabled={!canProcessPayment}
+          className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${
+            canProcessPayment
+              ? "bg-purple-600 hover:bg-purple-700 text-white"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          {isProcessing ? "Processing..." : "Pay with SOL"}
+        </button>
       )}
 
       {/* Transaction Status */}
-      {txHash && <TransactionStatus txHash={txHash} status={paymentStatus} />}
+      {paymentStatus !== "idle" && (
+        <TransactionStatus
+          txHash={txHash}
+          status={paymentStatus}
+        />
+      )}
     </div>
   );
-};
+}
 
 // Wrapper component that provides the wallet context
 const SolanaPayment: React.FC<SolanaPaymentProps> = (props) => {
