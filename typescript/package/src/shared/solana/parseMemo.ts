@@ -1,5 +1,5 @@
-import { address, GetTransactionApi } from "@solana/kit";
-import { MEMO_PROGRAM_ID } from "./index.js";
+import {address, GetTransactionApi} from "@solana/kit";
+import {MEMO_PROGRAM_ADDRESS} from "@solana-program/memo";
 
 /**
  * Extract memo data from a Solana transaction
@@ -14,7 +14,7 @@ export function extractMemoFromTransaction(
 
   try {
     const message = transaction.transaction.message;
-    const memoProgramId = address(MEMO_PROGRAM_ID);
+    const memoProgramId = address(MEMO_PROGRAM_ADDRESS);
 
     const instructions = message.instructions as any[];
     const accountKeys = message.accountKeys as any[];

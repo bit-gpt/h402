@@ -7,4 +7,3 @@ export * from './tokenAddress.js';
 
 // Constants
 export const NATIVE_SOL_DECIMALS = 9;
-export const MEMO_PROGRAM_ID = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
