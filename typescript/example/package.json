@@ -3,23 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "NEXT_SKIP_TURBOPACK=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@bit-gpt/h402": "workspace:*",
+    "@solana-program/token": "^0.5.1",
+    "@solana/kit": "^2.1.0",
+    "@solana/react": "^2.1.0",
+    "@wallet-standard/react": "^1.0.1",
+    "bs58": "^6.0.0",
     "fs": "^0.0.1-security",
     "next": "15.3.1",
-    "openai": "^4.96.0",
+    "openai": "^4.96.2",
     "path": "^0.12.7",
     "pino-pretty": "^13.0.0",
-    "react": "^19.0.0",
+    "react": "^19.1.0",
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
-    "viem": "^2.28.0",
-    "wagmi": "^2.15.0"
+    "viem": "^2.28.1",
+    "wagmi": "^2.15.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,6 +32,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "tailwindcss": "^4",

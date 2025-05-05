@@ -39,6 +39,11 @@ function ImageComponent({
   const attemptRef = useRef(1);
   const hasStartedFetchingRef = useRef(false);
 
+  // Debug log the filename parameter
+  useEffect(() => {
+    console.log("Image page received filename:", filename);
+  }, [filename]);
+
   useEffect(() => {
     if (status === "loading") {
       const timer = setTimeout(() => {
@@ -51,6 +56,7 @@ function ImageComponent({
   useEffect(() => {
     if (!filename || hasStartedFetchingRef.current) {
       if (!filename) {
+        console.error("No filename provided in query parameters");
         setStatus("error");
         setError("No filename provided");
       }
@@ -59,28 +65,33 @@ function ImageComponent({
 
     hasStartedFetchingRef.current = true;
 
-    const checkImage = async () => {
-      try {
-        const response = await fetch(`/uploads/${filename}`);
-        const maximumAttempts = 60;
+    const checkImage = () => {
+      const img = new Image();
+      const maximumAttempts = 60;
 
-        if (response.ok) {
-          setStatus("success");
-        } else if (response.status === 404 && attemptRef.current < maximumAttempts) {
-          attemptRef.current += 1;
+      img.onload = () => {
+        console.log("Image found successfully");
+        setStatus("success");
+      };
+
+      img.onerror = () => {
+        console.log(`Image not found yet, attempt ${attemptRef.current}/${maximumAttempts}`);
+        attemptRef.current += 1;
+        if (attemptRef.current < maximumAttempts) {
           setTimeout(checkImage, 2000);
         } else {
+          console.error(`Failed to load image after ${attemptRef.current} attempts`);
           setStatus("error");
-          setError("Image not found after multiple attempts");
+          setError(`Image not found after multiple attempts`);
         }
-      } catch {
-        setStatus("error");
-        setError("Failed to load image");
-      }
+      };
+
+      // Add a cache-busting parameter to prevent browser caching
+      img.src = `/uploads/${filename}?t=${Date.now()}`;
     };
 
     checkImage();
-  }, [filename]);
+  }, [filename, setError, setStatus]);
 
   if (status === "error") {
     return (
@@ -98,7 +109,7 @@ function ImageComponent({
       <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="text-white text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4"></div>
-          {showLoadingText && <p>Generating your image...</p>}
+          {showLoadingText && <p>Generating your image{filename ? `: ${filename}` : '...'}...</p>}
         </div>
       </div>
     );
@@ -106,12 +117,18 @@ function ImageComponent({
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-black relative">
-      <img
-        src={`/uploads/${filename}`}
-        alt="AI Generated Image"
-        className="absolute max-w-full max-h-full object-contain"
-        sizes="100vw"
-      />
+      <div className="relative w-full h-full flex items-center justify-center p-4">
+        {/* Replace Image component with a more reliable approach */}
+        <img
+          src={`/uploads/${filename}?t=${Date.now()}`}
+          alt="AI Generated Image"
+          className="max-w-full max-h-[90vh] object-contain"
+        />
+        {/* Debug information */}
+        <div className="absolute bottom-2 left-2 text-white text-xs opacity-50">
+          Image path: /uploads/{filename}
+        </div>
+      </div>
     </div>
   );
 }
