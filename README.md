@@ -1,10 +1,10 @@
 # HTTP 402 protocol
 
+![402 preview](./images/site/preview.png)
+
 HTTP 402 is the web-native standard for payments. Our mission is to design a frictionless machine-to-machine protocol that allows agents to pay for APIs, compute resources, and data using simple HTTP requests and native blockchain transactions scaling to billions of sub-cent microtransactions.
 
 This unlocks a previously unattainable economic layer for AI-native commerce, while simultaneously delivering a best-in-class user experience for humans.
-
-We've released [402pay](https://402pay.com) powered by the HTTP 402 protocol to showcase what is possible.
 
 ```js
 // This is an example of how our package can be integrated
@@ -14,11 +14,10 @@ We've released [402pay](https://402pay.com) powered by the HTTP 402 protocol to 
 app.use(
   "/generate-image",
   monetize({
-    scheme: "exact",
-    amount: 0.001,
-    token: "USDT",
-    chainId: 56, // BSC mainnet
-    namespace: "eip155",
+    amount: 0.001,    // defaults to scheme exact
+    token: "USDT",    // certain tokenAddresses are baked in the protocol for easier dev implementation
+    chainId: 56,      // BSC mainnet
+    namespace: "evm",
   })
 );
 ```
@@ -56,16 +55,7 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 
 We decided to create `h402`, which simply stands for `HTTP 402`, based on the open schemes provided by [x402](https://github.com/coinbase/x402).
 
-The reason for spinning off into a separate project comes down to a few key points
-
-- First, we needed to move fast; this protocol is and will be critical for our payment platform, and building independently allows us to iterate quickly
-- Second, maintaining a separate implementation gives us the freedom to make protocol decisions that aren’t influenced by the priorities of BASE (and by extension, USDC), whose development may naturally lean toward optimizing for their internal use cases or preferred chains, rather than creating a broadly compatible solution for other blockchains.
-
-Another major factor is the need to support features not currently handled by x402:
-
-- For example, x402 assumes the presence of permit-based tokens (EIP-2612), which USDC supports, but USDT doesn't
-- We also needed to implement post-broadcast validations for cryptocurrencies like Bitcoin
-- And most importantly, we required polling-based systems, which are essential both as fallback mechanisms for payment providers and for any setup that relies on standalone address verification, rather than a one-size-fits-all signed payload + broadcast approach
+The reason for spinning off into a separate project comes down to a few key points, you can read them in our [FAQs.md](./FAQs.md) or at our website [h402.xyz](https://h402.xyz).
 
 > We're a fairly small team, so this repo is evolving rapidly we'll be updating it weekly (or even daily) with new details, schemes, and examples.
 > In the meantime, if anything's missing or underspecified, you can check out the original x402 repository for reference.
@@ -168,7 +158,7 @@ type PaymentDetails = {
   // Amount required to access the resource in atomic units
   amountRequired: number | bigint;
   // Format of the amount required
-  amountRequiredFormat: "atomic" | "formatted";
+  amountRequiredFormat: "smallestUnit" | "humanReadable";
   // Address to pay for accessing the resource
   payToAddress: string;
   // Token contract
@@ -182,14 +172,13 @@ type PaymentDetails = {
   // Output schema of the resource response
   outputSchema: object | null;
   // Time in seconds it may be before the payment can be settaled
-  estimatedProcessingTime: number;
+  requiredDeadlineSeconds: number;
   // Extra informations about the payment for the scheme
   extra: Record<string, any> | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
+
+  // Fields for support to other standards
   // Maximum amount required to access the resource in amount ** 10 ** decimals
-  maxAmountRequired?: bigint | null;
-  // Time in seconds it may be before the payment can be settaled
-  requiredDeadlineSeconds?: number | null; */
+  maxAmountRequired?: bigint | null; // converts into amountRequired
 };
 
 type PaymentRequired = {
@@ -199,9 +188,10 @@ type PaymentRequired = {
   accepts: PaymentDetails[];
   // Message for error(s) that occured while processing payment
   error: string | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
+
+  // Fields for support to other standards
   // Version of the x402 payment protocol
-  x402Version?: number | null; */
+  x402Version?: number | null;
 };
 
 type PaymentPayload<T> = {
@@ -329,27 +319,11 @@ type SignAndSendTransactionPaymentPayload =
 
 ## FAQs
 
-See [FAQs.md](./FAQs.md) or live on our playground at [play.bitgpt.xyz/faq](https://play.bitgpt.xyz/faq)
+See [FAQs.md](./FAQs.md) or our website [h402.xyz](https://h402.xyz)
 
 ## Roadmap
 
-Our vision for h402 is to establish a robust, open-source protocol for blockchain-native payments, not just as a solution for the ecosystem, but to fulfill a real need we face ourselves in standardizing agent-based blockchain transactions.
-
-We're actively building a [payment platform](https://dash.bitgpt.xyz) to support both traditional merchants and autonomous agents. This platform will be based on the open protocol for seamless payment acceptance, remittance, and automation.
-
-Upcoming releases in Q2 2025 will include new protocol schemes:
-
-- `upto`
-- `prepaid`
-- `streamed`
-- `subscription`
-- `postpaid`
-
-And namespaces:
-
-- Solana
-- Bitcoin
-- Tron
+See [ROADMAP.md](./ROADMAP.md).
 
 ## Community
 
@@ -379,68 +353,6 @@ The 402 flow can vary based on the payment scheme and user-agent configuration. 
 The playground is still under active development. While it currently mocks the protocol and checkout interface, more examples and features will be added soon, both here and in the soon-to-be-open-sourced repository.
 
 ![playground sequence diagram explanations](./images/playground/examples.png)
-
-## TODO
-
-### General
-
-- [ ] Expand this README with detailed scheme documentation, code examples, and functionality breakdowns
-- [x] Add real-world examples
-- [ ] Add unit tests
-- [ ] Add vulnerability protocol inside SECURITY.md
-- [ ] Add security best practices (detailed about what goes with what), such as
-  - [ ] Payload comes from the client and paymentDetails are from the server
-  - [ ] Have verify and settle in a signle route as payload may be tampered with on the client
-- [ ] Document functions with JSDoc
-- [ ] Release public facilitator APIs for open use
-
-### Schemes
-
-- [ ] Add scheme specific documentation and explain them separately
-- [x] Add `exact`
-- [ ] Add `upto`
-- [ ] Add `prepaid`
-- [ ] Add `streamed`
-- [ ] Add `subscription`
-- [ ] Add `postpaid`
-- [x] Support Solana
-- [ ] Support Sui
-- [ ] Support Bitcoin
-- [ ] Support Ripple
-- [ ] Support Tron
-
-### Protocol
-
-- [ ] Change namespaces name to be more friendly e.g. "evm", "bitcoin", etc.
-- [ ] Support for single-chain and cross-chain swaps
-- [ ] How to handle failed attempts after action on non-permit protocols? Example: image generation fails after already-broadcasted tx
-
-### Packages
-
-- [ ] Provide an HTML page that users can serve when returning a 402 status code to humans served directly by our package
-- [ ] Improve packages so that they enable users to implement 402 with one LOC for both Client and Server
-- [ ] Add SDKs for languages beyond TypeScript
-- [ ] Add handling for failed action when settle and permits are available
-- [x] Add support for WalletConnect and other implementations
-- [x] `await settle` after onSuccess?
-
-### Examples
-
-- [ ] More examples for Node and TS
-- [ ] Improve documentation on how to start them (env vars and compute requirements), how to modify them and how to re-use them
-- [ ] Improve current examples with real-life payment implementation issues
-  - [ ] Signature matching with an Invoice/Payment ID to avoid duplicated payments
-  - [ ] Check creation date txHash vs creation date invoice/payment
-  - [ ] Sync queue for txHash processing to avoid race conditions
-  - [ ] Price matching on required vs sent from
-  - [ ] Real DB implementation that simulate a payment environment, since certain implementations cannot be stateless
-  - [ ] More information and comments on stateless vs stateful implementations for these type of payments (signed payload vs txHash)
-
-### Updates checklist
-
-- [ ] Facilitator support
-- [ ] Verify/settle
-- [ ] Scheme-specific documentation
 
 ## License
 

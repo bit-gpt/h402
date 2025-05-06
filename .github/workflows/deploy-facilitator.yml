@@ -36,7 +36,8 @@ jobs:
 
       - uses: docker/build-push-action@v6 
         with:
-          context: "{{defaultContext}}:typescript/${{ env.DEPLOY_NAME }}"
+          file: "typescript/${{ env.DEPLOY_NAME }}/Dockerfile"
+          context: "{{defaultContext}}"
           tags: |
             ${{ secrets.REGISTRY_URL }}/h402/${{ env.DEPLOY_NAME }}:latest
             ${{ secrets.REGISTRY_URL }}/h402/${{ env.DEPLOY_NAME }}:${{ github.sha }}

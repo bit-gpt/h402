@@ -6,6 +6,12 @@ Frequently asked questions about the procol, technical and leadership decisions.
 HTTP 402 is the web-native standard for payments. Our mission is to design a frictionless machine-to-machine protocol that allows agents to pay for APIs, compute resources, and data using simple HTTP requests and native blockchain transactions, scaling to billions of sub-cent microtransactions.
 This unlocks a previously unattainable economic layer for AI-native commerce, while simultaneously delivering a best-in-class user experience for humans.
 
+## How do you verify task execution? Or is that all trust based?
+
+Task execution success is out of scope for the protocol itself, it’s the responsibility of the AI service, merchant, or provider to define and measure successful execution.
+
+However, the protocol supports deferred settlement mechanisms through EVM Permits and SVM durable nonces or pre-signed transactions. This enables merchants to verify signed payloads, execute tasks, and conditionally broadcast transactions, ensuring payment only if execution succeeds.
+
 ## How do you position h402 compared to x402?
 
 The h402 protocol, made by BitGPT, builds on top of x402, with minimal deviations from its schema to ensure the continuation and adoption of a true open standard.

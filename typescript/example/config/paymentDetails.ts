@@ -10,7 +10,7 @@ export const paymentDetails: PaymentDetails = {
   networkId: "56",
   amountRequired: 0.01,
   amountRequiredFormat: "formatted",
-  tokenAddress: "0x55d398326f99059fF775485246999027B3197955",
+  tokenAddress: "0x55d398326f99059ff775485246999027b3197955",
   resource: "image-generation",
   description: "Access to generated images",
   mimeType: "application/json",
