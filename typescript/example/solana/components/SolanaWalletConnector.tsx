@@ -9,7 +9,8 @@ import {
   forwardRef,
 } from "react";
 import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
-import { WalletPanel } from "@/components/WalletPanel";
+import { DisconnectedWalletPanel } from "@/components/DisconnectedWalletPanel";
+import { SolanaConnectedWalletPanel } from "@/solana/components/SolanaConnectedWalletPanel";
 import {
   UiWallet,
   UiWalletAccount,
@@ -68,6 +69,7 @@ const SolanaWalletConnector = forwardRef<HTMLDivElement, WalletConnectionProps>(
     const [statusMessage, setStatusMessage] = useState("");
     const [selectedWalletForConnection, setSelectedWalletForConnection] =
       useState<UiWallet | null>(null);
+    const [selectedWallet, setSelectedWallet] = useState<UiWallet | null>(null);
     const [showWalletOptions, setShowWalletOptions] = useState(false);
 
     // Get all available wallets
@@ -93,10 +95,11 @@ const SolanaWalletConnector = forwardRef<HTMLDivElement, WalletConnectionProps>(
         if (accounts && accounts.length > 0) {
           setSelectedAccount(accounts[0]);
           setStatusMessage("");
+          setSelectedWallet(selectedWalletForConnection);
         }
         setSelectedWalletForConnection(null);
       },
-      [setSelectedAccount]
+      [setSelectedAccount, selectedWalletForConnection]
     );
 
     // Handle wallet connect button click
@@ -108,14 +111,17 @@ const SolanaWalletConnector = forwardRef<HTMLDivElement, WalletConnectionProps>(
     const handleDisconnect = useCallback(async (): Promise<void> => {
       try {
         setSelectedAccount(undefined);
+        setSelectedWallet(null);
         setStatusMessage("");
+        setSelectedWalletForConnection(null);
+        onWalletConnectionChange?.(false);
         return Promise.resolve();
       } catch (error) {
         console.error("Disconnect error:", error);
         setStatusMessage("Failed to disconnect wallet");
         return Promise.reject(error);
       }
-    }, [setSelectedAccount]);
+    }, [onWalletConnectionChange, setSelectedAccount]);
 
     // Convert wallet standard wallets to the format expected by WalletPanel
     const walletOptions: WalletOption<string>[] = useMemo(() => {
@@ -173,19 +179,26 @@ const SolanaWalletConnector = forwardRef<HTMLDivElement, WalletConnectionProps>(
         )}
 
         {/* Wallet Connection Panel */}
-        <WalletPanel
-          connected={!!selectedAccount}
-          connectedAddress={selectedAccount?.address || ""}
-          statusMessage={statusMessage}
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-          options={showWalletOptions ? walletOptions : []}
-          onSelectOption={handleSelectWallet}
-          bgClass="bg-purple-600 hover:bg-purple-700"
-          heading="Connect Solana Wallet"
-          subheading="Connect your Solana wallet to pay for image generation"
-          disabled={!!selectedWalletForConnection}
-        />
+        {selectedAccount && selectedWallet ? (
+          <SolanaConnectedWalletPanel
+            connectedAddress={selectedAccount.address}
+            statusMessage={statusMessage}
+            wallet={selectedWallet}
+            onDisconnected={handleDisconnect}
+            disabled={!!selectedWalletForConnection}
+          />
+        ) : (
+          <DisconnectedWalletPanel
+            statusMessage={statusMessage}
+            onConnect={handleConnect}
+            options={showWalletOptions ? walletOptions : []}
+            onSelectOption={handleSelectWallet}
+            bgClass="bg-purple-600 hover:bg-purple-700"
+            heading="Connect Solana Wallet"
+            subheading="Connect your Solana wallet to pay for image generation"
+            disabled={!!selectedWalletForConnection}
+          />
+        )}
       </div>
     );
   }

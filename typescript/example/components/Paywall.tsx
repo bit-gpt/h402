@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useContext } from "react";
 import PaymentSelector from "@/components/PaymentSelector";
 import EvmPayment from "@/evm/components/EvmPayment";
 import ImagePromptInput from "@/components/ImagePromptInput";
@@ -8,6 +8,7 @@ import { useEvmWallet } from "@/evm/context/EvmWalletContext";
 // Import individual components instead of the combined one
 import SolanaWalletConnector from "@/solana/components/SolanaWalletConnector";
 import SolanaPaymentProcessor from "@/solana/components/SolanaPaymentProcessor";
+import { SelectedWalletAccountContext } from "@/solana/context/SelectedWalletAccountContext";
 
 const MIN_PROMPT_LENGTH = 3;
 
@@ -32,13 +33,21 @@ function SolanaPaymentComponents({
   walletConnected: boolean;
   prompt: string;
 }) {
+  // Add a state to track when the wallet is fully connected with an account
+  const [selectedAccount] = useContext(SelectedWalletAccountContext);
+  
+  // Only consider wallet connected when we have both the flag and a valid account
+  const isWalletFullyConnected = walletConnected && !!selectedAccount;
+
   return (
     <div className="space-y-6">
       {/* Wallet connector is always shown */}
-      <SolanaWalletConnector onWalletConnectionChange={onWalletConnectionChange} />
+      <SolanaWalletConnector
+        onWalletConnectionChange={onWalletConnectionChange}
+      />
 
-      {/* Payment processor is only shown when wallet is connected */}
-      {walletConnected && (
+      {/* Payment processor is only shown when wallet is fully connected */}
+      {isWalletFullyConnected && (
         <SolanaPaymentProcessor
           isPromptValid={isPromptValid}
           isProcessing={isProcessing}

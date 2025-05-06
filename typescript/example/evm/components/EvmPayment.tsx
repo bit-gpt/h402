@@ -6,7 +6,8 @@ import { bsc } from "viem/chains";
 import { createPayment } from "@bit-gpt/h402";
 import { paymentDetails } from "@/config/paymentDetails";
 import { useEvmWallet } from "@/evm/context/EvmWalletContext";
-import { WalletPanel } from "@/components/WalletPanel";
+import { DisconnectedWalletPanel } from "@/components/DisconnectedWalletPanel";
+import { EvmConnectedWalletPanel } from "@/evm/components/EvmConnectedWalletPanel";
 import { EVM_WALLET_OPTIONS } from "@/config/walletOptions";
 import { mapTxError } from "@/lib/mapTxError";
 import TransactionStatus from "@/components/TransactionStatus";
@@ -125,7 +126,9 @@ const EvmPayment = forwardRef<HTMLButtonElement, EvmPaymentProps>(
         }
 
         setPaymentStatus("paid");
-        console.log("Payment successful! Redirecting directly to image generation...");
+        console.log(
+          "Payment successful! Redirecting directly to image generation..."
+        );
 
         // Redirect directly to the image generation API endpoint
         window.location.href = `/api/generate-image?prompt=${encodeURIComponent(prompt.trim())}&402base64=${encodeURIComponent(
@@ -149,19 +152,25 @@ const EvmPayment = forwardRef<HTMLButtonElement, EvmPaymentProps>(
       <>
         {/* EVM Wallet Section */}
         <div className="mb-6">
-          <WalletPanel
-            connected={!!walletClient}
-            connectedAddress={connectedAddress}
-            statusMessage={statusMessage}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            options={showWalletOptions ? EVM_WALLET_OPTIONS : []}
-            onSelectOption={handleWalletSelection}
-            bgClass="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-            heading="Please connect your wallet to continue"
-            subheading="Make sure you are on the BSC network"
-            disabled={isProcessing}
-          />
+          {walletClient ? (
+            <EvmConnectedWalletPanel
+              connectedAddress={connectedAddress}
+              statusMessage={statusMessage}
+              onDisconnect={handleDisconnect}
+              disabled={isProcessing}
+            />
+          ) : (
+            <DisconnectedWalletPanel
+              statusMessage={statusMessage}
+              onConnect={handleConnect}
+              options={showWalletOptions ? EVM_WALLET_OPTIONS : []}
+              onSelectOption={handleWalletSelection}
+              bgClass="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+              heading="Please connect your wallet to continue"
+              subheading="Make sure you are on the BSC network"
+              disabled={isProcessing}
+            />
+          )}
         </div>
 
         {/* Hidden Payment Button */}
