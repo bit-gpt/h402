@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     console.log("Processing payment:", base64Payment);
 
     const imageResponse = await openai().images.generate({
-      model: "dall-e-2",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
