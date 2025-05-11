@@ -1,4 +1,6 @@
 packages:
-  - 'typescript/package'
-  - 'typescript/example'
-  - 'typescript/facilitator'
+  - typescript/package
+  - typescript/example
+  - typescript/facilitator
+ignoredBuiltDependencies:
+  - better-sqlite3
