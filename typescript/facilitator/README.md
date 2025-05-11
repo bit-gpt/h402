@@ -32,7 +32,7 @@ ETHEREUM_RPC_URL=https://rpc.com  # Ethereum RPC url
 BASE_RPC_URL=https://rpc.com      # Base RPC url
 BSC_RPC_URL=https://rpc.com       # BSC RPC url
 
-# Backup configuration
+# Backup configuration (Required)
 BACKUP_SCHEDULE=0 0 * * *         # Backup cron schedule
 KEEP_BACKUPS=7                    # Backup retention count
 
@@ -41,6 +41,10 @@ S3_ENDPOINT=play.min.io           # S3 compatible endpoint
 S3_ACCESS_KEY=access_key          # S3 access key
 S3_SECRET_KEY=secret_key          # S3 secret key
 S3_BUCKET=h402-backups            # S3 bucket name
+
+# Redis configuration (Required)
+REDIS_HOST=redis
+REDIS_PORT=6379
 ```
 
 Note:
