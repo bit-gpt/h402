@@ -3,18 +3,17 @@ services:
     build:
       context: ../..
       dockerfile: typescript/facilitator/Dockerfile
+    command: node dist/index.js
     ports: ["${PORT}:${PORT}"]
     volumes: [facilitator-data:/data]
     environment:
       - PRIVATE_KEY=${PRIVATE_KEY}
       - PORT=${PORT}
-      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE}
-      - KEEP_BACKUPS=${KEEP_BACKUPS}
       - ADMIN_TOKEN=${ADMIN_TOKEN}
-      - S3_ENDPOINT=${S3_ENDPOINT}
-      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
-      - S3_SECRET_KEY=${S3_SECRET_KEY}
-      - S3_BUCKET=${S3_BUCKET}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    depends_on:
+      - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:${PORT}/health"]
@@ -23,6 +22,40 @@ services:
       retries: 3
       start_period: 15s
 
+  worker:
+    build:
+      context: ../..
+      dockerfile: typescript/facilitator/Dockerfile
+    command: node dist/worker.js
+    volumes: [facilitator-data:/data]
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE}
+      - KEEP_BACKUPS=${KEEP_BACKUPS}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports: ["${REDIS_PORT}:${REDIS_PORT}"]
+    volumes: [redis-data:/data]
+    command: redis-server --appendonly yes --port ${REDIS_PORT}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
 volumes:
   facilitator-data:
     name: h402-facilitator-data
+  redis-data:
+    name: h402-redis-data

@@ -24,6 +24,8 @@ pnpm install
 PRIVATE_KEY=0xYourPrivateKey      # Required: Signer key
 PORT=3000                         # Required: Server port
 ADMIN_TOKEN=secure_token          # Required: Admin access
+REDIS_HOST=redis                  # Required: Redis host
+REDIS_PORT=6397                   # Required: Redis port
 
 # RPC configuration
 ETHEREUM_RPC_URL=https://rpc.com  # Ethereum RPC url

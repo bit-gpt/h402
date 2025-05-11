@@ -58,5 +58,3 @@ WORKDIR /app/typescript/facilitator
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget --spider http://localhost:${PORT:-3000}/health || exit 1
-
-ENTRYPOINT ["node", "dist/index.js"]
