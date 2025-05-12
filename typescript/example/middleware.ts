@@ -1,4 +1,4 @@
-import { h402Middleware } from "@bit-gpt/h402/next";
+import { h402NextMiddleware } from "@bit-gpt/h402/middleware";
 import { paymentDetails } from "./config/paymentDetails";
 import { NextResponse, NextRequest } from "next/server";
 
@@ -79,8 +79,7 @@ const onSuccessHandler = async (
 };
 
 // Create the middleware with the configuration
-// Use a type assertion to fix the compatibility issue
-export const middleware = h402Middleware({
+export const middleware = h402NextMiddleware({
   ...middlewareConfig,
   onSuccess: onSuccessHandler,
 });

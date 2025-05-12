@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
+import { Request, Response, NextFunction } from "express";
 import { utils } from "../index.js";
 import {
   FacilitatorResponse,
@@ -13,9 +12,10 @@ import {
 } from "../../shared/solana/clusterEndpoints.js";
 
 type OnSuccessHandler = (
-  request: NextRequest,
+  req: Request,
+  res: Response,
   response: FacilitatorResponse<VerifyResponse | SettleResponse>
-) => Promise<NextResponse>;
+) => Promise<void>;
 
 /**
  * Configuration options for the h402 middleware
@@ -31,7 +31,7 @@ interface H402Config {
   /** The URL of the facilitator endpoint */
   facilitatorUrl?: string;
   /** The error handler to use for the middleware */
-  onError?: (error: string, request: NextRequest) => NextResponse;
+  onError?: (error: string, req: Request, res: Response) => void;
   /** The success handler to use for the middleware */
   onSuccess?: OnSuccessHandler;
   /** Solana cluster configuration */
@@ -42,27 +42,26 @@ interface H402Config {
  * Creates a middleware for h402 payment verification and settlement
  *
  * @param {H402Config} config - Configuration options for the middleware
- * @returns {(request: NextRequest) => Promise<NextResponse>} Middleware handler function
+ * @returns {(req: Request, res: Response, next: NextFunction) => Promise<void>} Middleware handler function
  *
  * @example
  * ```ts
- * // middleware.ts
- * import { h402Middleware } from '@bit-gpt/h402/next'
+ * // app.ts
+ * import express from 'express'
+ * import { h402ExpressMiddleware } from '@bit-gpt/h402/middleware'
  * import { paymentDetails } from './config/paymentDetails'
  *
- * export const middleware = h402Middleware({
+ * const app = express()
+ *
+ * app.use(h402ExpressMiddleware({
  *   routes: ['/paywalled_route'],
  *   paywallRoute: '/paywall',
  *   paymentDetails,
  *   facilitatorUrl: 'http://localhost:3000/api/facilitator',
- * })
- *
- * export const config = {
- *   matcher: '/paywalled_route'
- * }
+ * }))
  * ```
  */
-export function h402Middleware(config: H402Config) {
+function h402ExpressMiddleware(config: H402Config) {
   const {
     facilitatorUrl,
     paymentDetails,
@@ -80,31 +79,34 @@ export function h402Middleware(config: H402Config) {
     configureSolanaClusters(solanaConfig);
   }
 
-  const defaultErrorHandler = (request: NextRequest) => {
-    const redirectUrl = new URL(paywallRoute, request.url);
-    return NextResponse.rewrite(redirectUrl, { status: 402 });
+  const defaultErrorHandler = (req: Request, res: Response) => {
+    res.redirect(402, paywallRoute);
   };
 
-  const handleError = (error: string, request: NextRequest) =>
-    onError ? onError(error, request) : defaultErrorHandler(request);
+  const handleError = (error: string, req: Request, res: Response) =>
+    onError ? onError(error, req, res) : defaultErrorHandler(req, res);
 
-  return async function handler(request: NextRequest) {
-    const pathname = request.nextUrl.pathname;
+  return async function handler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    const pathname = req.path;
 
     if (!routes.some((route) => pathname.startsWith(route))) {
-      return NextResponse.next();
+      return next();
     }
 
-    const payment = request.nextUrl.searchParams.get("402base64");
+    const payment = req.query["402base64"] as string;
 
     if (!payment) {
-      return handleError("Payment Required", request);
+      return handleError("Payment Required", req, res);
     }
 
     const verifyResponse = await verify(payment, paymentDetails);
 
     if (verifyResponse.error) {
-      return handleError(verifyResponse.error, request);
+      return handleError(verifyResponse.error, req, res);
     }
 
     const paymentType = verifyResponse.data?.type;
@@ -113,18 +115,21 @@ export function h402Middleware(config: H402Config) {
       const settleResponse = await settle(payment, paymentDetails);
 
       if (settleResponse.error) {
-        return handleError(settleResponse.error, request);
+        return handleError(settleResponse.error, req, res);
       }
 
       if (onSuccess) {
-        return await (onSuccess as OnSuccessHandler)(request, settleResponse);
+        return await onSuccess(req, res, settleResponse);
       }
     } else if (onSuccess) {
-      return await (onSuccess as OnSuccessHandler)(request, verifyResponse);
+      return await onSuccess(req, res, verifyResponse);
     }
 
-    request.nextUrl.searchParams.delete("402base64");
+    // Remove the payment parameter from the query
+    delete req.query["402base64"];
 
-    return NextResponse.next();
+    next();
   };
 }
+
+export { h402ExpressMiddleware };

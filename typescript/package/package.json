@@ -42,15 +42,15 @@
       "import": "./dist/facilitator/index.js",
       "default": "./dist/facilitator/index.js"
     },
-    "./next": {
-      "types": "./dist/middlewares/next/index.d.ts",
-      "import": "./dist/middlewares/next/index.js",
-      "default": "./dist/middlewares/next/index.js"
-    },
     "./schemes/exact/solana": {
       "types": "./dist/schemes/exact/solana/index.d.ts",
       "import": "./dist/schemes/exact/solana/index.js",
       "default": "./dist/schemes/exact/solana/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js",
+      "default": "./dist/middleware/index.js"
     }
   },
   "files": [
