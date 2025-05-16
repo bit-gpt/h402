@@ -1,9 +1,9 @@
-import { createSolanaRpc, address } from "@solana/kit";
-import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
-import { PaymentDetails } from "../../../types/index.js";
-import { ExactSolanaBroadcastPaymentPayload } from "../../../types/scheme/exact/solana/index.js";
-import { SettleResponse, VerifyResponse } from "../../../types/facilitator.js";
-import { solana } from "../../../shared/index.js";
+import {address, createSolanaRpc} from "@solana/kit";
+import {TOKEN_PROGRAM_ADDRESS} from "@solana-program/token";
+import {PaymentPayload, PaymentRequirements} from "../../../types/index.js";
+import {Payload} from "../../../types/scheme/exact/solana/index.js";
+import {SettleResponse, VerifyResponse} from "../../../types/facilitator.js";
+import {solana} from "../../../shared/index.js";
 
 /**
  * Verify a Solana payment for the exact scheme
@@ -11,10 +11,10 @@ import { solana } from "../../../shared/index.js";
  * with the correct amount and a memo matching the resource
  */
 export async function verify(
-  payload: ExactSolanaBroadcastPaymentPayload,
-  paymentDetails: PaymentDetails
+  payload: PaymentPayload<Payload>,
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
-  if (paymentDetails.namespace !== "solana") {
+  if (paymentRequirements.namespace !== "solana") {
     return {
       isValid: false,
       errorMessage: 'Payment details must use the "solana" namespace',
@@ -22,14 +22,64 @@ export async function verify(
   }
 
   try {
+    console.log("[DEBUG-SOLANA-VERIFY] Starting Solana payment verification", {
+      payloadType: payload.payload.type,
+      networkId: paymentRequirements.networkId,
+      resource: paymentRequirements.resource
+    });
+
     // Create RPC client for Solana cluster
-    const rpc = createSolanaRpc(solana.getClusterUrl(paymentDetails.networkId));
+    const rpc = createSolanaRpc(
+      solana.getClusterUrl(paymentRequirements.networkId)
+    );
+
+    // Get transaction signature based on payload type
+    let txSignature: string;
+
+    switch (payload.payload.type) {
+      case "nativeTransfer":
+      case "tokenTransfer":
+        txSignature = payload.payload.signature;
+        break;
+      case "signAndSendTransaction":
+        // For signAndSendTransaction, verify both signature and transaction match
+        if (!payload.payload.signature || !payload.payload.transaction?.signature) {
+          return {
+            isValid: false,
+            errorMessage: "Missing required signature in signAndSendTransaction payload"
+          };
+        }
+        if (payload.payload.signature !== payload.payload.transaction.signature) {
+          return {
+            isValid: false,
+            errorMessage: "Signature mismatch between payload and transaction"
+          };
+        }
+        txSignature = payload.payload.signature;
+        break;
+      case "signTransaction":
+        txSignature = payload.payload.signedTransaction;
+        break;
+      case "signMessage":
+        return {
+          isValid: false,
+          errorMessage:
+            "SignMessage payloads cannot be verified as transactions",
+        };
+      default:
+        return {
+          isValid: false,
+          errorMessage: `Unsupported payload type: ${(payload.payload as any).type}`,
+        };
+    }
+
+    console.log("[DEBUG-SOLANA-VERIFY] Fetching transaction", {txSignature});
 
     // Fetch the transaction
     const txResponse = await solana.fetchTransaction(
-      payload.payload.transaction.txHash,
-      paymentDetails.networkId,
-      { confirmations: 1, waitForConfirmation: true }
+      txSignature,
+      paymentRequirements.networkId,
+      {waitForConfirmation: true},
     );
 
     if (!txResponse) {
@@ -47,32 +97,10 @@ export async function verify(
       };
     }
 
-    // Extract memo from transaction
-    const extractedMemo = solana.extractMemoFromTransaction(txResponse);
-
-    // If payload has a memo, it must match the extracted memo
-    if (
-      payload.payload.transaction.memo &&
-      extractedMemo !== payload.payload.transaction.memo
-    ) {
-      return {
-        isValid: false,
-        errorMessage: "Memo in payload does not match memo in transaction",
-      };
-    }
-
-    // Validate memo contains the resource ID
-    if (!solana.validateMemo(extractedMemo, paymentDetails.resource)) {
-      return {
-        isValid: false,
-        errorMessage: "Memo does not contain the correct resource ID",
-      };
-    }
-
     // Verify payment amount and recipient
     const isValidPayment = await verifyPaymentAmount(
       txResponse,
-      paymentDetails,
+      paymentRequirements,
       rpc
     );
 
@@ -83,7 +111,7 @@ export async function verify(
     // All checks passed
     return {
       isValid: true,
-      txHash: payload.payload.transaction.txHash as string,
+      txHash: txSignature,
       type: "transaction",
     };
   } catch (error) {
@@ -101,10 +129,10 @@ export async function verify(
  */
 async function verifyPaymentAmount(
   txResponse: any, // Using any type to avoid compatibility issues
-  paymentDetails: PaymentDetails,
+  paymentRequirements: PaymentRequirements,
   rpc: ReturnType<typeof createSolanaRpc>
 ): Promise<VerifyResponse> {
-  const { transaction, meta } = txResponse;
+  const {transaction, meta} = txResponse;
   if (!meta) {
     return {
       isValid: false,
@@ -112,13 +140,13 @@ async function verifyPaymentAmount(
     };
   }
 
-  const payToAddress = address(paymentDetails.payToAddress);
-  const requiredAmount = BigInt(paymentDetails.amountRequired.toString());
+  const payToAddress = address(paymentRequirements.payToAddress);
+  const requiredAmount = BigInt(paymentRequirements.amountRequired.toString());
 
   // Check if this is a native SOL transfer or SPL token transfer
   if (
-    !paymentDetails.tokenAddress ||
-    paymentDetails.tokenAddress === "11111111111111111111111111111111"
+    !paymentRequirements.tokenAddress ||
+    paymentRequirements.tokenAddress === "11111111111111111111111111111111"
   ) {
     // Native SOL transfer
     let totalTransferred = BigInt(0);
@@ -134,7 +162,7 @@ async function verifyPaymentAmount(
             ? address(accountKeys[i])
             : accountKeys[i];
 
-        if (accountKey.equals(payToAddress)) {
+        if (accountKey.toString() === payToAddress.toString()) {
           const preBalance = meta.preBalances[i];
           const postBalance = meta.postBalances[i];
           const transferred = BigInt(postBalance) - BigInt(preBalance);
@@ -212,11 +240,11 @@ async function verifyPaymentAmount(
 
             // For tokens, we need to check if the destination is the associated token account
             // for the payment address
-            if (paymentDetails.tokenAddress) {
+            if (paymentRequirements.tokenAddress) {
               // Get the expected token account for the payment address
               const expectedTokenAccount = solana.getAssociatedTokenAddress(
-                paymentDetails.tokenAddress,
-                paymentDetails.payToAddress
+                address(paymentRequirements.tokenAddress),
+                address(paymentRequirements.payToAddress)
               );
 
               // Compare the public keys
@@ -253,7 +281,9 @@ async function verifyPaymentAmount(
                   const mintAddress = address(
                     Buffer.from(mintAddressBytes).toString("hex")
                   );
-                  const expectedMint = address(paymentDetails.tokenAddress);
+                  const expectedMint = address(
+                    paymentRequirements.tokenAddress
+                  );
 
                   // Compare the addresses as strings
                   if (mintAddress.toString() !== expectedMint.toString()) {
@@ -284,7 +314,7 @@ async function verifyPaymentAmount(
     }
   }
 
-  return { isValid: true };
+  return {isValid: true};
 }
 
 /**
@@ -292,11 +322,11 @@ async function verifyPaymentAmount(
  * For broadcast transactions, this just verifies the transaction is confirmed
  */
 export async function settle(
-  payload: ExactSolanaBroadcastPaymentPayload,
-  paymentDetails: PaymentDetails
+  payload: PaymentPayload<Payload>,
+  paymentRequirements: PaymentRequirements
 ): Promise<SettleResponse> {
   // For broadcast transactions, settling is the same as verifying
-  const verifyResult = await verify(payload, paymentDetails);
+  const verifyResult = await verify(payload, paymentRequirements);
 
   if (!verifyResult.isValid) {
     return {
@@ -305,9 +335,35 @@ export async function settle(
     };
   }
 
+  // Get transaction signature based on payload type
+  let txSignature: string;
+
+  switch (payload.payload.type) {
+    case "nativeTransfer":
+    case "tokenTransfer":
+      txSignature = payload.payload.signature;
+      break;
+    case "signAndSendTransaction":
+      txSignature = payload.payload.signature;
+      break;
+    case "signTransaction":
+      txSignature = payload.payload.signedTransaction;
+      break;
+    case "signMessage":
+      return {
+        success: false,
+        error: "SignMessage payloads cannot be settled as transactions",
+      };
+    default:
+      return {
+        success: false,
+        error: `Unsupported payload type: ${(payload.payload as any).type}`,
+      };
+  }
+
   return {
     success: true,
-    txHash: payload.payload.transaction.txHash as string,
-    chainId: paymentDetails.networkId,
+    txHash: txSignature,
+    chainId: paymentRequirements.networkId,
   };
 }

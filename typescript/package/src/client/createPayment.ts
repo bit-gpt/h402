@@ -1,15 +1,14 @@
-import { PublicActions, WalletClient } from "viem";
-import { PaymentDetails } from "../types";
+import { PublicActions } from "viem";
+import { PaymentRequirements } from "../types";
 import { evm, solana } from "../shared/index.js";
 import { exact } from "../schemes/index.js";
-import { parsePaymentDetailsForAmount } from "../shared/parsePaymentDetails.js";
-import { safeBase64Encode } from "../shared";
+import { parsePaymentRequirementsForAmount } from "../shared/parsePaymentRequirements";
 import { PaymentClient, CreatePaymentFunction } from "../types/payment.js";
 
 /**
  * Creates a payment based header on the provided payment details and client.
  *
- * @param {PaymentDetails} paymentDetails - The details of the payment to be created
+ * @param {PaymentRequirements} paymentRequirements - The details of the payment to be created
  * @param {PaymentClient} client - The client object containing chain-specific clients
  * @returns {Promise<string>} A promise that resolves to the payment header
  *
@@ -32,39 +31,58 @@ import { PaymentClient, CreatePaymentFunction } from "../types/payment.js";
  * 3. Encodes and returns the payment data
  */
 const createPayment: CreatePaymentFunction = async (
-  paymentDetails: PaymentDetails,
+  paymentRequirements: PaymentRequirements,
   client: PaymentClient
 ): Promise<string> => {
-  if (!paymentDetails.namespace) {
+  if (!paymentRequirements.namespace) {
     throw new Error("Payment details namespace is required");
   }
 
-  paymentDetails = await parsePaymentDetailsForAmount(
-    paymentDetails,
-    client.evmClient as PublicActions
-  );
+  // Conditionally use the appropriate client based on the payment namespace
+  if (paymentRequirements.namespace === "solana") {
+    if (!client.solanaClient || !client.solanaClient.rpc) {
+      throw new Error("solanaClient with rpc is required for Solana payments");
+    }
+    paymentRequirements = await parsePaymentRequirementsForAmount(
+      paymentRequirements,
+      client.solanaClient.rpc
+    );
+  } else {
+    // Default to EVM client for EVM payments
+    if (!client.evmClient) {
+      throw new Error("evmClient is required for EVM payments");
+    }
+    paymentRequirements = await parsePaymentRequirementsForAmount(
+      paymentRequirements,
+      client.evmClient as PublicActions
+    );
+  }
 
-  switch (paymentDetails.namespace) {
-    case "eip155": {
-      if (!Object.keys(evm.chains).includes(paymentDetails.networkId)) {
-        throw new Error(`Unsupported EVM Network: ${paymentDetails.networkId}`);
-      }
-      if (!client.evmClient) {
-        throw new Error("evmClient is required for EIP-155 payments");
-      }
-      if (client.evmClient.chain?.id.toString() !== paymentDetails.networkId) {
+  switch (paymentRequirements.namespace) {
+    case "evm": {
+      if (!Object.keys(evm.chains).includes(paymentRequirements.networkId)) {
         throw new Error(
-          `EVM client chainId doesn't match payment networkId: ${paymentDetails.networkId}`
+          `Unsupported EVM Network: ${paymentRequirements.networkId}`
         );
       }
-      switch (paymentDetails.scheme) {
+      if (!client.evmClient) {
+        throw new Error("evmClient is required for EVM payments");
+      }
+      if (
+        client.evmClient.chain?.id.toString() !== paymentRequirements.networkId
+      ) {
+        throw new Error(
+          `EVM client chainId doesn't match payment networkId: ${paymentRequirements.networkId}`
+        );
+      }
+      switch (paymentRequirements.scheme) {
         case "exact":
           return await exact.handlers.evm.createPayment(
             client.evmClient,
-            paymentDetails
+            paymentRequirements
           );
         default:
-          throw new Error(`Unsupported scheme: ${paymentDetails.scheme}`);
+          throw new Error(`Unsupported scheme: ${paymentRequirements.scheme}`);
       }
     }
     case "solana": {
@@ -84,15 +102,15 @@ const createPayment: CreatePaymentFunction = async (
         );
       }
 
-      if (!solana.isSolanaSupported(paymentDetails.networkId)) {
+      if (!solana.isSolanaSupported(paymentRequirements.networkId)) {
         throw new Error(
-          `Unsupported Solana Network: ${paymentDetails.networkId}`
+          `Unsupported Solana Network: ${paymentRequirements.networkId}`
         );
       }
 
-      switch (paymentDetails.scheme) {
+      switch (paymentRequirements.scheme) {
         case "exact": {
-          console.log("createPayment paymentDetails", paymentDetails);
+          console.log("createPayment paymentRequirements", paymentRequirements);
 
           // Create a complete solanaClient object that includes the RPC
           const solanaClientWithRpc = {
@@ -111,17 +129,19 @@ const createPayment: CreatePaymentFunction = async (
           // Use the dedicated Solana createPayment function with the enhanced client
           return exact.handlers.solana.createPayment(
             solanaClientWithRpc,
-            paymentDetails
+            paymentRequirements
           );
         }
         default:
           throw new Error(
-            `Unsupported scheme for Solana: ${paymentDetails.scheme}`
+            `Unsupported scheme for Solana: ${paymentRequirements.scheme}`
           );
       }
     }
     default:
-      throw new Error(`Unsupported namespace: ${paymentDetails.namespace}`);
+      throw new Error(
+        `Unsupported namespace: ${paymentRequirements.namespace}`
+      );
   }
 };
 

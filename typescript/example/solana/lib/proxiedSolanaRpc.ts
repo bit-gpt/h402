@@ -8,8 +8,8 @@ export function createProxiedSolanaRpc() {
   const proxyEndpoint = "/api/solana-rpc";
 
   // Define the methods we need to support
-  const supportedMethods = ['getLatestBlockhash', 'getSignatureStatuses', 'sendTransaction'];
-  
+  const supportedMethods = ['getLatestBlockhash', 'getSignatureStatuses', 'sendTransaction', 'getTransaction'];
+
   // Create a proxy that intercepts all method calls
   return new Proxy({} as any, {
     get(_, methodName: string) {
@@ -36,7 +36,7 @@ export function createProxiedSolanaRpc() {
           },
         });
       }
-      
+
       // For unsupported methods, return a function that logs and throws an error
       return (...args: any[]) => {
         console.warn(`Unsupported RPC method called: ${String(methodName)}`, args);

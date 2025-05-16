@@ -14,9 +14,9 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 app.use(
   "/generate-image",
   monetize({
-    amount: 0.001,    // defaults to scheme exact
-    token: "USDT",    // certain tokenAddresses are baked in the protocol for easier dev implementation
-    chainId: 56,      // BSC mainnet
+    amount: 0.001, // defaults to scheme exact
+    token: "USDT", // certain tokenAddresses are baked in the protocol for easier dev implementation
+    chainId: 56, // BSC mainnet
     namespace: "evm",
   })
 );
@@ -148,7 +148,7 @@ All the types can be found [here](https://github.com/bit-gpt/h402/tree/main/type
 ### Protocol
 
 ```typescript
-type PaymentDetails = {
+type PaymentRequirements = {
   // Scheme of the payment protocol to use
   scheme: string;
   // Namespace for the receiving blockchain network
@@ -185,7 +185,7 @@ type PaymentRequired = {
   // Version of the h402 payment protocol
   version: number;
   // List of payment details that the resource server accepts (A resource server may accept multiple tokens/chains)
-  accepts: PaymentDetails[];
+  accepts: PaymentRequirements[];
   // Message for error(s) that occured while processing payment
   error: string | null;
 
@@ -215,7 +215,7 @@ type PaymentPayload<T> = {
 ```typescript
 type FacilitatorRequest = {
   paymentHeader: string;
-  paymentDetails: PaymentDetails;
+  paymentRequirements: PaymentRequirements;
 };
 
 type FacilitatorResponse<T> = {

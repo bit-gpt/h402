@@ -226,6 +226,53 @@ button[disabled] {
   color: var(--color-text-disabled);
 }
 
+/* Payment Button Styles */
+.payment-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  background-image: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-purple-text)
+  );
+  color: white;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.payment-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.payment-button-processing {
+  opacity: 0.9;
+  cursor: wait;
+}
+
+.payment-button-spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.payment-error-message {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(var(--color-error-rgb), 0.1);
+  border: 1px solid rgba(var(--color-error-rgb), 0.2);
+  border-radius: 0.25rem;
+  text-align: left;
+}
+
 /* Input fields */
 input,
 textarea {

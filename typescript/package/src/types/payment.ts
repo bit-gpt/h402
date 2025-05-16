@@ -1,6 +1,6 @@
 import { createSolanaRpc } from "@solana/kit";
 import { PublicActions, WalletClient } from "viem";
-import { PaymentDetails } from "./protocol.js";
+import { PaymentRequirements } from "./protocol.js";
 import {
   TransactionModifyingSigner,
   TransactionSendingSigner,
@@ -33,5 +33,8 @@ export interface PaymentClient {
  * Interface for the createPayment function signature
  */
 export interface CreatePaymentFunction {
-  (paymentDetails: PaymentDetails, client: PaymentClient): Promise<string>;
+  (
+    paymentRequirements: PaymentRequirements,
+    client: PaymentClient
+  ): Promise<string>;
 }
