@@ -9,7 +9,7 @@ Our vision for h402 is to establish a robust, open-source protocol for blockchai
 - [ ] Add unit tests
 - [ ] Add vulnerability protocol inside SECURITY.md
 - [ ] Add security best practices (detailed about what goes with what), such as
-  - [ ] Payload comes from the client and paymentDetails are from the server
+  - [ ] Payload comes from the client and paymentRequirements are from the server
   - [ ] Have verify and settle in a signle route as payload may be tampered with on the client
 - [ ] Document functions with JSDoc
 - [ ] Release public facilitator APIs for open use

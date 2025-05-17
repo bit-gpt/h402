@@ -15,6 +15,7 @@ const ALLOWED_METHODS = new Set([
   "getLatestBlockhash",
   "getSignatureStatuses",
   "sendTransaction",
+  "getTransaction",
 ]);
 
 // Custom replacer function to handle BigInt serialization
@@ -42,9 +43,9 @@ export async function POST(req: NextRequest) {
     // Forward the request to the RPC endpoint
     // @ts-expect-error - Dynamic method call is safe because we check against ALLOWED_METHODS
     const result = await rpc[method](...params).send();
-    
+
     console.log(`Solana RPC proxy result for ${method}:`, result);
-    
+
     // Use the custom replacer function to handle BigInt values
     return new Response(JSON.stringify(result, bigIntReplacer), {
       headers: {

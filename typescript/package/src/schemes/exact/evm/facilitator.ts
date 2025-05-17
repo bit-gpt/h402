@@ -2,7 +2,7 @@ import { evm } from "../../../shared/index.js";
 import { SCHEME } from "../index.js";
 import {
   VerifyResponse,
-  PaymentDetails,
+  PaymentRequirements,
   PaymentPayload,
   Hex,
 } from "../../../types/index.js";
@@ -43,17 +43,17 @@ async function getMaxGasForChain(client: PublicClient): Promise<bigint> {
 async function verify(
   client: PublicClient,
   payload: PaymentPayload<exact.evm.Payload>,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
   try {
-    if (!validateBasePayload(payload, paymentDetails)) {
+    if (!validateBasePayload(payload, paymentRequirements)) {
       return {
         isValid: false,
         errorMessage: "Invalid payload structure or version mismatch",
       };
     }
 
-    if (!validateChain(payload, paymentDetails)) {
+    if (!validateChain(payload, paymentRequirements)) {
       return {
         isValid: false,
         errorMessage: "Invalid chain configuration",
@@ -65,25 +65,25 @@ async function verify(
         return await verifyAuthorizationPayload(
           client,
           payload.payload,
-          paymentDetails
+          paymentRequirements
         );
       case "nativeTransfer":
         return await verifyNativeTransferPayload(
           client,
           payload.payload,
-          paymentDetails
+          paymentRequirements
         );
       case "tokenTransfer":
         return await verifyTokenTransferPayload(
           client,
           payload.payload,
-          paymentDetails
+          paymentRequirements
         );
       case "signAndSendTransaction":
         return await verifySignAndSendTransactionPayload(
           client,
           payload.payload,
-          paymentDetails
+          paymentRequirements
         );
       default:
         return {
@@ -101,31 +101,31 @@ async function verify(
 
 function validateBasePayload(
   payload: PaymentPayload<exact.evm.Payload>,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): boolean {
   return (
     payload.version === config["h402Version"] &&
     payload.scheme === SCHEME &&
-    payload.namespace === paymentDetails.namespace &&
-    payload.networkId === paymentDetails.networkId &&
-    payload.resource === paymentDetails.resource
+    payload.namespace === paymentRequirements.namespace &&
+    payload.networkId === paymentRequirements.networkId &&
+    payload.resource === paymentRequirements.resource
   );
 }
 
 function validateChain(
   payload: PaymentPayload<exact.evm.Payload>,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): boolean {
   return (
-    payload.networkId === paymentDetails.networkId &&
-    payload.namespace === "eip155"
+    payload.networkId === paymentRequirements.networkId &&
+    payload.namespace === "evm"
   );
 }
 
 async function verifyAuthorizationPayload(
   client: PublicClient,
   payload: exact.evm.AuthorizationPayload,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
   const currentTime = Math.floor(Date.now() / 1000);
   const safetyMargin = BLOCK_TIME * SAFETY_BLOCKS;
@@ -144,14 +144,14 @@ async function verifyAuthorizationPayload(
     };
   }
 
-  if (payload.authorization.value < paymentDetails.amountRequired) {
+  if (payload.authorization.value < paymentRequirements.amountRequired) {
     return {
       isValid: false,
       errorMessage: "Insufficient authorized amount",
     };
   }
 
-  if (payload.authorization.to !== paymentDetails.payToAddress) {
+  if (payload.authorization.to !== paymentRequirements.payToAddress) {
     return {
       isValid: false,
       errorMessage: "Invalid recipient address",
@@ -159,7 +159,7 @@ async function verifyAuthorizationPayload(
   }
 
   const balance = await client.readContract({
-    address: paymentDetails.tokenAddress as `0x${string}`,
+    address: paymentRequirements.tokenAddress as `0x${string}`,
     abi: [
       {
         name: "balanceOf",
@@ -213,7 +213,7 @@ async function verifyAuthorizationPayload(
 
     const gasEstimate = await client.estimateGas({
       account: payload.authorization.from,
-      to: paymentDetails.tokenAddress as `0x${string}`,
+      to: paymentRequirements.tokenAddress as `0x${string}`,
       data,
     });
 
@@ -235,7 +235,7 @@ async function verifyAuthorizationPayload(
   }
 
   const isValidSignature = await client.readContract({
-    address: paymentDetails.tokenAddress as `0x${string}`,
+    address: paymentRequirements.tokenAddress as `0x${string}`,
     abi: [
       {
         name: "verifyTransferAuthorization",
@@ -278,16 +278,16 @@ async function verifyAuthorizationPayload(
 async function verifyNativeTransferPayload(
   client: PublicClient,
   payload: exact.evm.NativeTransferPayload,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
-  if (payload.transaction.value < paymentDetails.amountRequired) {
+  if (payload.transaction.value < paymentRequirements.amountRequired) {
     return {
       isValid: false,
       errorMessage: "Insufficient transfer amount",
     };
   }
 
-  if (payload.transaction.to !== paymentDetails.payToAddress) {
+  if (payload.transaction.to !== paymentRequirements.payToAddress) {
     return {
       isValid: false,
       errorMessage: "Invalid recipient address",
@@ -348,16 +348,16 @@ async function verifyNativeTransferPayload(
 async function verifyTokenTransferPayload(
   client: PublicClient,
   payload: exact.evm.TokenTransferPayload,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
-  if (payload.transaction.value < paymentDetails.amountRequired) {
+  if (payload.transaction.value < paymentRequirements.amountRequired) {
     return {
       isValid: false,
       errorMessage: "Insufficient transfer amount",
     };
   }
 
-  if (payload.transaction.to !== paymentDetails.payToAddress) {
+  if (payload.transaction.to !== paymentRequirements.payToAddress) {
     return {
       isValid: false,
       errorMessage: "Invalid recipient address",
@@ -365,7 +365,7 @@ async function verifyTokenTransferPayload(
   }
 
   const balance = await client.readContract({
-    address: paymentDetails.tokenAddress as `0x${string}`,
+    address: paymentRequirements.tokenAddress as `0x${string}`,
     abi: [
       {
         name: "balanceOf",
@@ -389,7 +389,7 @@ async function verifyTokenTransferPayload(
   try {
     const gasEstimate = await client.estimateGas({
       account: payload.transaction.from,
-      to: paymentDetails.tokenAddress as `0x${string}`,
+      to: paymentRequirements.tokenAddress as `0x${string}`,
       data: payload.transaction.data,
     });
 
@@ -430,7 +430,7 @@ async function verifyTokenTransferPayload(
 async function verifySignAndSendTransactionPayload(
   client: PublicClient,
   payload: exact.evm.SignAndSendTransactionPayload,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
   try {
     const txData = await client.getTransaction({
@@ -462,8 +462,8 @@ async function verifySignAndSendTransactionPayload(
       };
     }
 
-    if (paymentDetails.tokenAddress === evm.ZERO_ADDRESS) {
-      if (txData.value < paymentDetails.amountRequired) {
+    if (paymentRequirements.tokenAddress === evm.ZERO_ADDRESS) {
+      if (txData.value < paymentRequirements.amountRequired) {
         return {
           isValid: false,
           errorMessage: "Insufficient transfer amount",
@@ -471,7 +471,7 @@ async function verifySignAndSendTransactionPayload(
       }
       if (
         txData.to?.toLowerCase() !==
-        (paymentDetails.payToAddress as Hex).toLowerCase()
+        (paymentRequirements.payToAddress as Hex).toLowerCase()
       ) {
         return {
           isValid: false,
@@ -481,7 +481,7 @@ async function verifySignAndSendTransactionPayload(
     } else {
       if (
         txData.to?.toLowerCase() !==
-        (paymentDetails.tokenAddress as Hex).toLowerCase()
+        (paymentRequirements.tokenAddress as Hex).toLowerCase()
       ) {
         return {
           isValid: false,
@@ -516,14 +516,14 @@ async function verifySignAndSendTransactionPayload(
         const [recipient, amount] = decodedInput.args;
         if (
           recipient.toLowerCase() !==
-          (paymentDetails.payToAddress as Hex).toLowerCase()
+          (paymentRequirements.payToAddress as Hex).toLowerCase()
         ) {
           return {
             isValid: false,
             errorMessage: "Invalid transfer recipient",
           };
         }
-        if (amount < paymentDetails.amountRequired) {
+        if (amount < paymentRequirements.amountRequired) {
           return {
             isValid: false,
             errorMessage: "Insufficient transfer amount",
@@ -539,7 +539,7 @@ async function verifySignAndSendTransactionPayload(
       const transferEvent = txReceipt.logs.find(
         (log) =>
           log.address.toLowerCase() ===
-            (paymentDetails.tokenAddress as Hex).toLowerCase() &&
+            (paymentRequirements.tokenAddress as Hex).toLowerCase() &&
           log.topics[0] ===
             keccak256(toBytes("Transfer(address,address,uint256)"))
       );
@@ -569,8 +569,8 @@ async function verifySignAndSendTransactionPayload(
 
       if (
         decodedEvent.args.to.toLowerCase() !==
-          (paymentDetails.payToAddress as Hex).toLowerCase() ||
-        decodedEvent.args.value < paymentDetails.amountRequired
+          (paymentRequirements.payToAddress as Hex).toLowerCase() ||
+        decodedEvent.args.value < paymentRequirements.amountRequired
       ) {
         return {
           isValid: false,
@@ -581,7 +581,7 @@ async function verifySignAndSendTransactionPayload(
 
     const messageVerified = await client.verifyMessage({
       address: txData.from,
-      message: paymentDetails.resource,
+      message: paymentRequirements.resource,
       signature: payload.signedMessage,
     });
 
@@ -607,14 +607,14 @@ async function verifySignAndSendTransactionPayload(
 async function settle(
   client: WalletClient & PublicActions,
   payload: PaymentPayload<exact.evm.Payload>,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<{ txHash: string } | { errorMessage: string }> {
   try {
-    if (!validateBasePayload(payload, paymentDetails)) {
+    if (!validateBasePayload(payload, paymentRequirements)) {
       return { errorMessage: "Invalid payload structure or version mismatch" };
     }
 
-    if (!validateChain(payload, paymentDetails)) {
+    if (!validateChain(payload, paymentRequirements)) {
       return { errorMessage: "Invalid chain configuration" };
     }
 
@@ -627,7 +627,7 @@ async function settle(
     });
 
     const publicClient = createPublicClient({
-      chain: evm.getChain(paymentDetails.networkId),
+      chain: evm.getChain(paymentRequirements.networkId),
       transport: http(),
     });
 
