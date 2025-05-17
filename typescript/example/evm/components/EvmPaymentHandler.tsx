@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPayment } from "@bit-gpt/h402";
 import { useEvmWallet } from "@/evm/context/EvmWalletContext";
-import { PaymentButtonProps, PaymentStatus } from "@/types/payment";
+import { PaymentButtonProps } from "@/types/payment";
 import PaymentButtonUI from "../../components/PaymentButton";
 
 /**
- * EVM-specific payment button component
+ * EVM-specific payment handler
  * Uses the EvmWalletContext for wallet integration
  */
 export default function EvmPaymentButton({
@@ -15,10 +15,11 @@ export default function EvmPaymentButton({
   paymentRequirements,
   onSuccess,
   onError,
+  paymentStatus,
+  setPaymentStatus,
   className = "",
 }: PaymentButtonProps) {
   // State for the payment flow
-  const [status, setStatus] = useState<PaymentStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Get EVM wallet context
@@ -27,12 +28,6 @@ export default function EvmPaymentButton({
   // Simplified ref to track payment attempts
   const paymentAttemptRef = useRef({
     attemptInProgress: false,
-  });
-
-  console.log("[DEBUG] EvmPaymentButton render", {
-    status,
-    connectedAddress: connectedAddress?.slice(0, 8),
-    attemptInProgress: paymentAttemptRef.current.attemptInProgress,
   });
 
   // Handle button click for unified experience
@@ -50,13 +45,13 @@ export default function EvmPaymentButton({
     }
 
     // If already connected, process payment
-    setStatus("approving");
+    setPaymentStatus("approving");
   };
 
   // Connect wallet handler
   const handleConnectWallet = async () => {
     setErrorMessage(null);
-    setStatus("connecting");
+    setPaymentStatus("connecting");
 
     try {
       console.log("[DEBUG] Connecting EVM wallet");
@@ -65,10 +60,10 @@ export default function EvmPaymentButton({
       await connectWallet("metamask");
 
       // If we get here, connection was successful
-      setStatus("approving"); // Go directly to payment approval
+      setPaymentStatus("approving"); // Go directly to payment approval
     } catch (err) {
       console.error("[DEBUG] EVM wallet connection error:", err);
-      setStatus("error");
+      setPaymentStatus("error");
       const errMsg = err instanceof Error ? err.message : String(err);
       setErrorMessage(errMsg);
       onError?.(err instanceof Error ? err : new Error(errMsg));
@@ -78,18 +73,12 @@ export default function EvmPaymentButton({
   // Update payment status callbacks
   const handlePaymentSuccess = useCallback(
     (paymentHeader: string, txHash: string) => {
-      console.log("[DEBUG] Payment succeeded");
+      console.log("[DEBUG] Payment sent and signed");
       console.log("[DEBUG] Payment header:", paymentHeader);
       console.log("[DEBUG] Transaction hash:", txHash);
-      setStatus("success");
 
-      // Reset payment tracking
-      paymentAttemptRef.current.attemptInProgress = false;
-
-      // Add a slight delay before redirecting to ensure UI updates
-      setTimeout(() => {
-        if (onSuccess) onSuccess(paymentHeader, txHash);
-      }, 1000);
+      // Call onSuccess immediately - the parent will handle facilitator verification
+      if (onSuccess) onSuccess(paymentHeader, txHash);
     },
     [onSuccess]
   );
@@ -107,10 +96,10 @@ export default function EvmPaymentButton({
       if (isUserCancellation) {
         console.log("[DEBUG] User cancelled payment");
         // Set status to error so the error message is displayed
-        setStatus("error");
+        setPaymentStatus("error");
         setErrorMessage("Transaction cancelled by user");
       } else {
-        setStatus("error");
+        setPaymentStatus("error");
         setErrorMessage(errMsg);
       }
 
@@ -119,35 +108,21 @@ export default function EvmPaymentButton({
 
       if (onError) onError(err instanceof Error ? err : new Error(errMsg));
     },
-    [onError]
+    [onError, setPaymentStatus]
   );
 
   const handlePaymentProcessing = useCallback(() => {
     console.log("[DEBUG] Payment processing started");
-    setStatus("processing");
+    setPaymentStatus("processing");
 
     // Mark payment as in progress
     paymentAttemptRef.current.attemptInProgress = true;
   }, []);
 
-  // Button text
-  const getButtonText = () => {
-    switch (status) {
-      case "connecting":
-        return "Connecting Wallet...";
-      case "approving":
-        return "Approve in Wallet...";
-      case "processing":
-        return "Processing Payment...";
-      case "success":
-        return "Payment Complete!";
-      default:
-        return `Pay - ${amount}`;
-    }
-  };
-
   // Determine if the button is disabled
-  const isDisabled = ["connecting", "processing", "success"].includes(status);
+  const isDisabled = ["connecting", "processing", "success"].includes(
+    paymentStatus
+  );
 
   return (
     <div className="flex flex-col w-full">
@@ -168,8 +143,8 @@ export default function EvmPaymentButton({
         )}
 
       <PaymentButtonUI
-        buttonText={getButtonText()}
-        status={status}
+        status={paymentStatus}
+        amount={amount}
         errorMessage={errorMessage}
         onClick={handleButtonClick}
         disabled={isDisabled}

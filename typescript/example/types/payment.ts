@@ -51,8 +51,11 @@ export type PaymentStatus =
   | "idle"
   | "connecting"
   | "connected"
+  // Waiting for payment approval in wallet
   | "approving"
+  // Payment has been sent, waiting for confirmation
   | "processing"
+  // Payment has enough confirmations
   | "success"
   | "error"
   | "facilitator_error";
@@ -62,6 +65,8 @@ export interface PaymentButtonProps {
   paymentRequirements?: any;
   onSuccess?: (paymentHeader: string, txHash: string) => void;
   onError?: (error: Error) => void;
+  paymentStatus: PaymentStatus;
+  setPaymentStatus: (status: PaymentStatus) => void;
   className?: string;
   prompt?: string;
 }

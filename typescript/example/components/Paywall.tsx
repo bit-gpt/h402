@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useWallets } from "@wallet-standard/react";
 import { useIsDarkMode } from "./ThemeProvider";
 import { useEvmWallet } from "@/evm/context/EvmWalletContext";
-import { PaymentUIProps, Network, Coin } from "@/types/payment";
+import { PaymentUIProps, Network, Coin, PaymentStatus } from "@/types/payment";
 import {
   normalizePaymentMethods,
   getCompatiblePaymentMethods,
@@ -20,8 +20,8 @@ import {
 } from "@/components/PaywallComponents";
 import { useWalletDetection } from "@/hooks/useWalletDetection";
 import { useCompatibleWallet } from "@/hooks/useCompatibleWallet";
-import SolanaPaymentButton from "@/solana/components/SolanaPaymentButton";
-import EvmPaymentButton from "@/evm/components/EvmPaymentButton";
+import SolanaPaymentHandler from "@/solana/components/SolanaPaymentHandler";
+import EvmPaymentHandler from "@/evm/components/EvmPaymentHandler";
 
 /**
  * Payment UI component with network/coin selection
@@ -37,6 +37,7 @@ export default function PaymentUI({
   const { connectedAddress: evmAddress } = useEvmWallet();
   const isDarkMode = useIsDarkMode();
   const { isTrueEvmProvider } = useWalletDetection(evmAddress);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
 
   // Convert payment details to array if needed
   const paymentMethods = useMemo(
@@ -192,6 +193,10 @@ export default function PaymentUI({
           throw new Error("No request ID received from server");
         }
 
+        // At this point, the facilitator has verified the transaction
+        // Now we can safely set the payment status to success
+        setPaymentStatus("success");
+
         // Start checking the status with the requestId
         checkImageStatus(15, 2000, data.requestId);
       } catch (error) {
@@ -316,23 +321,27 @@ export default function PaymentUI({
 
     if (selectedNetwork.id === "solana") {
       return (
-        <SolanaPaymentButton
+        <SolanaPaymentHandler
           amount={getDisplayAmount(activePaymentRequirements, selectedCoin)}
           wallet={selectedWallet}
           prompt={prompt}
           paymentRequirements={activePaymentRequirements}
           onSuccess={handlePaymentSuccess}
           onError={handlePaymentError}
+          setPaymentStatus={setPaymentStatus}
+          paymentStatus={paymentStatus}
         />
       );
     } else if (selectedNetwork.id === "bsc") {
       return (
-        <EvmPaymentButton
+        <EvmPaymentHandler
           amount={getDisplayAmount(activePaymentRequirements, selectedCoin)}
           prompt={prompt}
           paymentRequirements={activePaymentRequirements}
           onSuccess={handlePaymentSuccess}
           onError={handlePaymentError}
+          setPaymentStatus={setPaymentStatus}
+          paymentStatus={paymentStatus}
         />
       );
     }

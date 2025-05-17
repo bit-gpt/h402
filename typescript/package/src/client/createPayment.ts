@@ -23,10 +23,15 @@ import { PaymentClient, CreatePaymentFunction } from "../types/payment.js";
  * @description
  * This function handles the payment creation process by:
  * 1. Validating the payment namespace
- * 2. For EIP-155 (EVM) payments:
+ * 2.1 For EIP-155 (EVM) payments:
  *    - Verifies network support
  *    - Validates client configuration
  *    - Ensures chain ID matches
+ *    - Processes the payment based on the specified scheme
+ * 2.2 For Solana payments:
+ *    - Verifies network support
+ *    - Validates client configuration
+ *    - Ensures signAndSendTransaction is available
  *    - Processes the payment based on the specified scheme
  * 3. Encodes and returns the payment data
  */

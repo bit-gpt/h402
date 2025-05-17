@@ -4,39 +4,12 @@ import { ReactNode } from "react";
 import { PaymentStatus } from "@/types/payment";
 
 interface PaymentButtonUIProps {
-  /**
-   * Button text to display
-   */
-  buttonText: string;
-  
-  /**
-   * Current payment status
-   */
   status: PaymentStatus;
-  
-  /**
-   * Error message to display if status is error
-   */
+  amount: string;
   errorMessage?: string | null;
-  
-  /**
-   * Click handler for the button
-   */
   onClick: () => void;
-  
-  /**
-   * Whether the button is disabled
-   */
   disabled?: boolean;
-  
-  /**
-   * Additional CSS classes
-   */
   className?: string;
-  
-  /**
-   * Children to render inside the button (optional)
-   */
   children?: ReactNode;
 }
 
@@ -44,8 +17,8 @@ interface PaymentButtonUIProps {
  * Shared UI component for payment buttons with consistent styling
  */
 export default function PaymentButtonUI({
-  buttonText,
   status,
+  amount,
   errorMessage,
   onClick,
   disabled = false,
@@ -53,8 +26,30 @@ export default function PaymentButtonUI({
   children,
 }: PaymentButtonUIProps) {
   // Determine if the button is in a processing state
-  const isProcessing = ["connecting", "approving", "processing"].includes(status);
-  
+  const isProcessing = ["connecting", "approving", "processing"].includes(
+    status
+  );
+
+  // Button text
+  const buttonText = () => {
+    switch (status) {
+      case "connecting":
+        return "Connecting Wallet...";
+      case "approving":
+        return "Approve in Wallet...";
+      case "processing":
+        return "Processing Payment...";
+      case "success":
+        return "Payment Complete!";
+      case "facilitator_error":
+        return "Service Unavailable";
+      case "error":
+        return "Payment Failed";
+      default:
+        return `Pay - ${amount}`;
+    }
+  };
+
   return (
     <div className="flex flex-col w-full">
       <button
@@ -88,14 +83,14 @@ export default function PaymentButtonUI({
               ></path>
             </svg>
           )}
-          <span className="ml-2">{buttonText}</span>
+          <span className="ml-2">{buttonText()}</span>
         </div>
       </button>
-      
+
       {status === "error" && errorMessage && (
         <div className="mt-2 text-red-500 text-sm">{errorMessage}</div>
       )}
-      
+
       {children}
     </div>
   );
