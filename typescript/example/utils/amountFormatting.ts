@@ -1,4 +1,4 @@
-import {AmountFormat} from "@bit-gpt/h402/types";
+import { AmountFormat } from "@bit-gpt/h402/types";
 
 /**
  * Format an amount for display with appropriate decimal places
@@ -8,7 +8,12 @@ import {AmountFormat} from "@bit-gpt/h402/types";
  * @param symbol The token symbol to display (e.g., "SOL", "USDT")
  * @returns Formatted string with amount and symbol
  */
-export function formatAmountForDisplay({amount, format, symbol, decimals}: {
+export function formatAmountForDisplay({
+  amount,
+  format,
+  symbol,
+  decimals,
+}: {
   amount: string | number;
   format: AmountFormat;
   symbol: string;

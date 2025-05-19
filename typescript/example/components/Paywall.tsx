@@ -1,34 +1,46 @@
 "use client";
 
-import {useEffect, useMemo, useState} from "react";
-import {useRouter} from "next/navigation";
-import {useWallets} from "@wallet-standard/react";
-import {useIsDarkMode} from "./ThemeProvider";
-import {useEvmWallet} from "@/evm/context/EvmWalletContext";
-import {Coin, Network, PaymentStatus, PaymentUIProps} from "@/types/payment";
-import {generateAvailableNetworks, getCompatiblePaymentMethods, normalizePaymentMethods,} from "@/utils/paymentUtils";
-import {CancelButton, Dropdown, ErrorMessage, NoPaymentOptions,} from "@/components/PaywallComponents";
-import {useWalletDetection} from "@/hooks/useWalletDetection";
-import {useCompatibleWallet} from "@/hooks/useCompatibleWallet";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useWallets } from "@wallet-standard/react";
+import { useIsDarkMode } from "./ThemeProvider";
+import { useEvmWallet } from "@/evm/context/EvmWalletContext";
+import { Coin, Network, PaymentStatus, PaymentUIProps } from "@/types/payment";
+import {
+  generateAvailableNetworks,
+  getCompatiblePaymentMethods,
+  normalizePaymentMethods,
+} from "@/utils/paymentUtils";
+import {
+  CancelButton,
+  Dropdown,
+  ErrorMessage,
+  NoPaymentOptions,
+} from "@/components/PaywallComponents";
+import { useWalletDetection } from "@/hooks/useWalletDetection";
+import { useCompatibleWallet } from "@/hooks/useCompatibleWallet";
 import SolanaPaymentHandler from "@/solana/components/SolanaPaymentHandler";
 import EvmPaymentHandler from "@/evm/components/EvmPaymentHandler";
-import {formatAmountForDisplay} from "@/utils/amountFormatting";
+import { formatAmountForDisplay } from "@/utils/amountFormatting";
+import { PaymentRequirements } from "@bit-gpt/h402/types";
 
 /**
  * Payment UI component with network/coin selection
  * and integrated payment button
  */
 export default function PaymentUI({
-                                    prompt,
-                                    returnUrl,
-                                    paymentRequirements,
-                                  }: PaymentUIProps) {
+  prompt,
+  returnUrl,
+  paymentRequirements,
+}: PaymentUIProps) {
   const router = useRouter();
   const wallets = useWallets();
-  const {connectedAddress: evmAddress} = useEvmWallet();
+  const { connectedAddress: evmAddress } = useEvmWallet();
   const isDarkMode = useIsDarkMode();
-  const {isTrueEvmProvider} = useWalletDetection(evmAddress);
+  const { isTrueEvmProvider } = useWalletDetection(evmAddress);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
+  const [activePaymentRequirements, setActivePaymentRequirements] =
+    useState<PaymentRequirements | null>(null);
 
   // Convert payment details to array if needed
   const paymentMethods = useMemo(
@@ -65,7 +77,7 @@ export default function PaymentUI({
     useState(0);
 
   // Get compatible wallet
-  const {selectedWallet} = useCompatibleWallet(
+  const { selectedWallet } = useCompatibleWallet(
     selectedNetwork,
     wallets,
     isTrueEvmProvider
@@ -87,30 +99,32 @@ export default function PaymentUI({
     }
   }, [selectedNetwork.id, availableNetworks]);
 
-  // Get the active payment details based on selected coin
-  const activePaymentRequirements = useMemo(() => {
+  // Get the active payment requirements based on selected coin
+  useEffect(() => {
     console.log(
-      "[DEBUG-PAYMENT-FLOW] Getting active payment details for network:",
-      selectedNetwork.id
+      "[DEBUG-PAYMENT-FLOW] Getting active payment requirements for network:",
+      selectedNetwork.id,
+      "and coin:",
+      selectedCoin.name
     );
 
-    // Find payment method that matches the selected network and coin
+    // First try to find a direct match based on the selected coin's token address
     const matchingPaymentMethod = paymentMethods.find(
       (method) =>
         method.namespace === selectedNetwork.id &&
-        method.tokenAddress === selectedCoin.paymentRequirements?.tokenAddress
+        method.tokenSymbol === selectedCoin.name
     );
 
-    // If we found a direct match based on the selected coin, use that
     if (matchingPaymentMethod) {
       console.log(
-        "[DEBUG-PAYMENT-FLOW] Using payment method from selected coin:",
+        "[DEBUG-PAYMENT-FLOW] Found exact match for selected coin:",
         JSON.stringify(matchingPaymentMethod, null, 2)
       );
-      return matchingPaymentMethod;
+      setActivePaymentRequirements(matchingPaymentMethod);
+      return; // Exit early since we found an exact match
     }
 
-    // Otherwise fall back to the old method
+    // If no direct match, fall back to compatible methods
     const compatibleMethods = getCompatiblePaymentMethods(
       paymentMethods,
       selectedNetwork.id
@@ -118,39 +132,44 @@ export default function PaymentUI({
 
     if (compatibleMethods.length === 0) {
       console.log("[DEBUG-PAYMENT-FLOW] No compatible payment methods found");
-      return null;
+      setActivePaymentRequirements(null);
+      return; // Exit early since no compatible methods exist
     }
 
+    // Get the payment method at the selected index, defaulting to 0 if out of bounds
     const safeIndex =
       selectedPaymentMethodIndex < compatibleMethods.length
         ? selectedPaymentMethodIndex
         : 0;
+    let selectedPaymentMethod = compatibleMethods[safeIndex];
 
-    // Make sure we're using the correct payment details for the selected network
-    const paymentRequirements = compatibleMethods[safeIndex];
+    // Special handling for Solana addresses
+    if (
+      selectedPaymentMethod?.namespace === "solana" &&
+      selectedPaymentMethod.payToAddress?.startsWith("0x")
+    ) {
+      // Try to find a valid Solana payment method without 0x address
+      const validSolanaMethod = compatibleMethods.find(
+        (method) =>
+          method.namespace === "solana" &&
+          !method.payToAddress?.startsWith("0x")
+      );
 
-    // Validate that we're not using an EVM address for Solana payments
-    if (paymentRequirements.namespace === "solana") {
-      if (paymentRequirements.payToAddress?.startsWith("0x")) {
-        // Try to find a valid Solana payment method
-        const validSolanaMethod = compatibleMethods.find(
-          (method) =>
-            method.namespace === "solana" &&
-            !method.payToAddress?.startsWith("0x")
+      if (validSolanaMethod) {
+        console.log(
+          "[DEBUG-PAYMENT-FLOW] Found valid Solana payment method:",
+          JSON.stringify(validSolanaMethod, null, 2)
         );
-
-        if (validSolanaMethod) {
-          return validSolanaMethod;
-        }
+        selectedPaymentMethod = validSolanaMethod;
       }
     }
 
-    return paymentRequirements;
+    setActivePaymentRequirements(selectedPaymentMethod);
   }, [
     paymentMethods,
     selectedPaymentMethodIndex,
     selectedNetwork.id,
-    selectedCoin.paymentRequirements?.tokenAddress,
+    selectedCoin,
   ]);
 
   // Event handlers
@@ -307,14 +326,17 @@ export default function PaymentUI({
       );
     }
 
+    console.log("activePaymentRequirements", activePaymentRequirements);
+
     if (selectedNetwork.id === "solana") {
       return (
         <SolanaPaymentHandler
           amount={formatAmountForDisplay({
             amount: activePaymentRequirements.amountRequired?.toString() ?? 0,
-            format: activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
+            format:
+              activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
             symbol: selectedCoin.name,
-            decimals: activePaymentRequirements.tokenDecimals
+            decimals: activePaymentRequirements.tokenDecimals,
           })}
           wallet={selectedWallet}
           prompt={prompt}
@@ -330,9 +352,10 @@ export default function PaymentUI({
         <EvmPaymentHandler
           amount={formatAmountForDisplay({
             amount: activePaymentRequirements.amountRequired?.toString() ?? 0,
-            format: activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
+            format:
+              activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
             symbol: selectedCoin.name,
-            decimals: activePaymentRequirements.tokenDecimals
+            decimals: activePaymentRequirements.tokenDecimals,
           })}
           prompt={prompt}
           paymentRequirements={activePaymentRequirements}
@@ -391,9 +414,7 @@ export default function PaymentUI({
           {renderPaymentButton()}
 
           {/* Return button */}
-          {returnUrl && (
-            <CancelButton onReturn={() => router.push('/')}/>
-          )}
+          {returnUrl && <CancelButton onReturn={() => router.push("/")} />}
         </>
       )}
     </div>
