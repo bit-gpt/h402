@@ -7,19 +7,22 @@ HTTP 402 is the web-native standard for payments. Our mission is to design a fri
 This unlocks a previously unattainable economic layer for AI-native commerce, while simultaneously delivering a best-in-class user experience for humans.
 
 ```js
-// This is an example of how our package can be integrated
+// This is an example of how our package can be integrated with NextJS middleware
 // You can check out the sections below to find more implementation options
 // Or reach out to us at hello@bitgpt.xyz
+export const middleware = h402NextMiddleware({
+   routes: {
+      "/api/paywalled_route": {
+         paymentRequirements
+      }
+   },
+   paywallRoute: "/paywall",
+   facilitatorUrl: process.env.FACILITATOR_URL || "http://localhost:3001",
+});
 
-app.use(
-  "/generate-image",
-  monetize({
-    amount: 0.001, // defaults to scheme exact
-    token: "USDT", // certain tokenAddresses are baked in the protocol for easier dev implementation
-    chainId: 56, // BSC mainnet
-    namespace: "evm",
-  })
-);
+export const config = {
+   matcher: ["/api/paywalled_route"]
+};
 ```
 
 This protocol builds on top of the scheme from [x402](https://github.com/coinbase/x402), to ensure the continuation and adoption of a true open standard. You can check our [FAQs](https://bitgpt.xyz/faq402) to learn more.
@@ -236,85 +239,6 @@ type VerifyResponse = {
   txHash?: string;
   errorMessage?: string | undefined;
 };
-```
-
-### EVM `exact`
-
-```typescript
-type NativeTransferParameters = {
-  from: Hex;
-  to: Hex;
-  value: bigint;
-  nonce: number;
-};
-
-type TokenTransferParameters = {
-  from: Hex;
-  to: Hex;
-  value: bigint;
-  data: Hex;
-  nonce: number;
-};
-
-type AuthorizationParameters = {
-  from: Hex;
-  to: Hex;
-  value: bigint;
-  validAfter: bigint;
-  validBefore: bigint;
-  nonce: Hex;
-  version: string;
-};
-
-type SignAndSendTransactionParameters = {
-  from: Hex;
-  to: Hex;
-  value: bigint;
-  data: Hex;
-  nonce: Hex;
-};
-
-type NativeTransferPayload = {
-  type: "nativeTransfer";
-  signature: Hex;
-  transaction: NativeTransferParameters;
-};
-
-type TokenTransferPayload = {
-  type: "tokenTransfer";
-  signature: Hex;
-  transaction: TokenTransferParameters;
-};
-
-type AuthorizationPayload = {
-  type: "authorization";
-  signature: Hex;
-  authorization: AuthorizationParameters;
-};
-
-type SignAndSendTransactionPayload = {
-  type: "signAndSendTransaction";
-  signedMessage: Hex;
-  transactionHash: Hex;
-};
-
-type Payload =
-  | AuthorizationPayload
-  | NativeTransferPayload
-  | TokenTransferPayload
-  | SignAndSendTransactionPayload;
-
-type NativeTransferPaymentPayload =
-  ImportedPaymentPayloadType<NativeTransferPayload>;
-
-type TokenTransferPaymentPayload =
-  ImportedPaymentPayloadType<TokenTransferPayload>;
-
-type AuthorizationPaymentPayload =
-  ImportedPaymentPayloadType<AuthorizationPayload>;
-
-type SignAndSendTransactionPaymentPayload =
-  ImportedPaymentPayloadType<SignAndSendTransactionPayload>;
 ```
 
 ## FAQs

@@ -13,7 +13,6 @@ export interface SolanaClient {
   publicKey: string;
   signAndSendTransaction?: TransactionSendingSigner["signAndSendTransactions"];
   signTransaction?: TransactionModifyingSigner["modifyAndSignTransactions"];
-  rpc?: Partial<ReturnType<typeof createSolanaRpc>>;
 }
 
 /**

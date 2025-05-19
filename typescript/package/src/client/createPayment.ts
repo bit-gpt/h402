@@ -47,7 +47,6 @@ const createPayment: CreatePaymentFunction = async (
   if (paymentRequirements.namespace === "solana") {
     paymentRequirements = await parsePaymentRequirementsForAmount(
       paymentRequirements,
-      client.solanaClient?.rpc
     );
   } else {
     // Default to EVM client for EVM payments
@@ -112,23 +111,9 @@ const createPayment: CreatePaymentFunction = async (
 
       switch (paymentRequirements.scheme) {
         case "exact": {
-          // Create a complete solanaClient object that includes the RPC
-          const solanaClientWithRpc = {
-            ...client.solanaClient,
-            rpc: client.solanaClient.rpc, // Include the RPC in the client object
-          };
-
-          if (client.solanaClient.rpc) {
-            console.log("Using provided proxied Solana RPC client");
-          } else {
-            console.log(
-              "No proxied RPC provided, will use default in Solana client"
-            );
-          }
-
           // Use the dedicated Solana createPayment function with the enhanced client
           return exact.handlers.solana.createPayment(
-            solanaClientWithRpc,
+            client.solanaClient,
             paymentRequirements
           );
         }

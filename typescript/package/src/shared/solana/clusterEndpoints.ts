@@ -56,27 +56,6 @@ function getGlobalClusterRegistry(): ClusterRegistry {
 let clusterConfig: ClusterRegistry = getGlobalClusterRegistry();
 
 /**
- * Configure Solana cluster endpoints
- * @param config Custom cluster configuration
- */
-export function configureSolanaClusters(
-  config: Partial<Record<string, ClusterConfig>>
-) {
-  // Always operate on the single shared instance
-  clusterConfig = getGlobalClusterRegistry();
-
-  // Reset to defaults first
-  Object.assign(clusterConfig, DEFAULT_CLUSTERS);
-
-  // Add each provided cluster config
-  Object.entries(config).forEach(([clusterId, clusterCfg]) => {
-    if (clusterCfg) {
-      clusterConfig[clusterId] = clusterCfg;
-    }
-  });
-}
-
-/**
  * Get the RPC URL for a given cluster ID
  * Falls back to default URL if not configured
  */
@@ -96,22 +75,4 @@ export function isSolanaSupported(clusterId: string): boolean {
   // Ensure we reference the shared registry
   clusterConfig = getGlobalClusterRegistry();
   return clusterId in clusterConfig;
-}
-
-// ---------------------------------------------
-// Auto-configure from env vars (server only)
-// Server and edge runtimes keep using your QuickNode endpoint.
-// Client bundles fall back to the public default URL (or call the new /api/solana-rpc proxy
-// ---------------------------------------------
-if (
-  typeof window === "undefined" &&
-  typeof process !== "undefined" &&
-  process.env.SOLANA_MAINNET_RPC_URL
-) {
-  configureSolanaClusters({
-    mainnet: {
-      url: process.env.SOLANA_MAINNET_RPC_URL as string,
-      wsUrl: process.env.SOLANA_MAINNET_WS_URL,
-    },
-  });
 }

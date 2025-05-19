@@ -6,10 +6,6 @@ import {
   VerifyResponse,
   SettleResponse,
 } from "../../types/index.js";
-import {
-  configureSolanaClusters,
-  ClusterConfig,
-} from "../../shared/solana/clusterEndpoints.js";
 
 type OnSuccessHandler = (
   req: Request,
@@ -34,8 +30,6 @@ interface H402Config {
   onError?: (error: string, req: Request, res: Response) => void;
   /** The success handler to use for the middleware */
   onSuccess?: OnSuccessHandler;
-  /** Solana cluster configuration */
-  solanaConfig?: Partial<Record<string, ClusterConfig>>;
 }
 
 /**
@@ -69,15 +63,10 @@ function h402ExpressMiddleware(config: H402Config) {
     onSuccess,
     routes,
     paywallRoute,
-    solanaConfig,
   } = config;
   const { verify, settle } = utils.useFacilitator(
     facilitatorUrl ?? "https://facilitator.bitgpt.xyz"
   );
-
-  if (solanaConfig) {
-    configureSolanaClusters(solanaConfig);
-  }
 
   const defaultErrorHandler = (req: Request, res: Response) => {
     res.redirect(402, paywallRoute);
