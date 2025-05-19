@@ -1,4 +1,4 @@
-import {PaymentRequirements} from "@bit-gpt/h402/types";
+import { PaymentRequirements } from "@bit-gpt/h402/types";
 
 declare global {
   interface Window {
@@ -54,7 +54,7 @@ export interface PaymentButtonProps {
   onSuccess?: (paymentHeader: string, txHash: string) => void;
   onError?: (error: Error) => void;
   paymentStatus: PaymentStatus;
-  setPaymentStatus: (status: PaymentStatus) => void;
+  setPaymentStatus: (paymentStatus: PaymentStatus) => void;
   className?: string;
   prompt?: string;
 }

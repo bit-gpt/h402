@@ -157,7 +157,7 @@ export default function SolanaPaymentHandler({
         )}
 
       <PaymentButtonUI
-        status={paymentStatus}
+        paymentStatus={paymentStatus}
         amount={amount}
         errorMessage={errorMessage}
         onClick={handleButtonClick}

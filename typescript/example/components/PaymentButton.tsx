@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { PaymentStatus } from "@/types/payment";
 
 interface PaymentButtonUIProps {
-  status: PaymentStatus;
+  paymentStatus: PaymentStatus;
   amount: string;
   errorMessage?: string | null;
   onClick: () => void;
@@ -17,7 +17,7 @@ interface PaymentButtonUIProps {
  * Shared UI component for payment buttons with consistent styling
  */
 export default function PaymentButtonUI({
-  status,
+  paymentStatus,
   amount,
   errorMessage,
   onClick,
@@ -27,12 +27,12 @@ export default function PaymentButtonUI({
 }: PaymentButtonUIProps) {
   // Determine if the button is in a processing state
   const isProcessing = ["connecting", "approving", "processing"].includes(
-    status
+    paymentStatus
   );
 
   // Button text
   const buttonText = () => {
-    switch (status) {
+    switch (paymentStatus) {
       case "connecting":
         return "Connecting Wallet...";
       case "approving":
@@ -53,9 +53,9 @@ export default function PaymentButtonUI({
   return (
     <div className="flex flex-col w-full">
       <button
-        className={`payment-button ${isProcessing ? "payment-button-processing" : ""} ${status === "success" ? "payment-button-success" : ""} ${className}`}
+        className={`payment-button ${isProcessing ? "payment-button-processing" : ""} ${paymentStatus === "success" ? "payment-button-success" : ""} ${className}`}
         onClick={onClick}
-        disabled={disabled || isProcessing || status === "success"}
+        disabled={disabled || isProcessing || paymentStatus === "success"}
         type="button"
       >
         <div className="flex items-center justify-center">
@@ -87,7 +87,7 @@ export default function PaymentButtonUI({
         </div>
       </button>
 
-      {status === "error" && errorMessage && (
+      {paymentStatus === "error" && errorMessage && (
         <div className="mt-2 text-red-500 text-sm">{errorMessage}</div>
       )}
 

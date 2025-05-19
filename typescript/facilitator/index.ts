@@ -38,7 +38,6 @@ app.post("/verify", async (req: any, res: any) => {
 
     const verificationResult = await verify(payload, paymentRequirements);
 
-    // Log the complete verification result
     console.log(
       "[DEBUG-PAYMENT-FLOW] Complete verification result:",
       JSON.stringify(verificationResult),

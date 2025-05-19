@@ -35,7 +35,7 @@ export default function EvmPaymentHandler({
     console.log("[DEBUG] Button clicked", {
       hasWallet: !!walletClient,
       connectedAddress: connectedAddress?.slice(0, 8),
-      currentStatus: status,
+      currentStatus: paymentStatus,
     });
 
     // If not connected, connect first
@@ -114,10 +114,9 @@ export default function EvmPaymentHandler({
   const handlePaymentProcessing = useCallback(() => {
     console.log("[DEBUG] Payment processing started");
     setPaymentStatus("processing");
-
     // Mark payment as in progress
     paymentAttemptRef.current.attemptInProgress = true;
-  }, []);
+  }, [setPaymentStatus]);
 
   // Determine if the button is disabled
   const isDisabled = ["connecting", "processing", "success"].includes(
@@ -129,7 +128,7 @@ export default function EvmPaymentHandler({
       {/* Payment processor component that watches for wallet connection and status */}
       {connectedAddress &&
         walletClient &&
-        status === "approving" &&
+        paymentStatus === "approving" &&
         !paymentAttemptRef.current.attemptInProgress && (
           <EvmPaymentProcessor
             walletClient={walletClient}
@@ -143,7 +142,7 @@ export default function EvmPaymentHandler({
         )}
 
       <PaymentButtonUI
-        status={paymentStatus}
+        paymentStatus={paymentStatus}
         amount={amount}
         errorMessage={errorMessage}
         onClick={handleButtonClick}
@@ -277,11 +276,6 @@ function EvmPaymentProcessor({
     };
 
     processPayment();
-
-    // Clean up function
-    return () => {
-      console.log("[DEBUG] EvmPaymentProcessor unmounting");
-    };
   }, [
     connectedAddress,
     walletClient,
