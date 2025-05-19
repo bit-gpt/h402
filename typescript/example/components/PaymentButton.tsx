@@ -26,9 +26,12 @@ export default function PaymentButtonUI({
   children,
 }: PaymentButtonUIProps) {
   // Determine if the button is in a processing state
-  const isProcessing = ["connecting", "approving", "processing"].includes(
-    paymentStatus
-  );
+  const isProcessing = [
+    "connecting",
+    "approving",
+    "processing",
+    "success",
+  ].includes(paymentStatus);
 
   // Button text
   const buttonText = () => {
@@ -37,10 +40,11 @@ export default function PaymentButtonUI({
         return "Connecting Wallet...";
       case "approving":
         return "Approve in Wallet...";
+      // Waiting for confirmation
       case "processing":
         return "Processing Payment...";
       case "success":
-        return "Payment Complete!";
+        return "Payment Complete! Generating image...";
       case "facilitator_error":
         return "Service Unavailable";
       case "error":
