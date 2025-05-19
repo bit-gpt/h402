@@ -141,28 +141,7 @@ export default function PaymentUI({
       selectedPaymentMethodIndex < compatibleMethods.length
         ? selectedPaymentMethodIndex
         : 0;
-    let selectedPaymentMethod = compatibleMethods[safeIndex];
-
-    // Special handling for Solana addresses
-    if (
-      selectedPaymentMethod?.namespace === "solana" &&
-      selectedPaymentMethod.payToAddress?.startsWith("0x")
-    ) {
-      // Try to find a valid Solana payment method without 0x address
-      const validSolanaMethod = compatibleMethods.find(
-        (method) =>
-          method.namespace === "solana" &&
-          !method.payToAddress?.startsWith("0x")
-      );
-
-      if (validSolanaMethod) {
-        console.log(
-          "[DEBUG-PAYMENT-FLOW] Found valid Solana payment method:",
-          JSON.stringify(validSolanaMethod, null, 2)
-        );
-        selectedPaymentMethod = validSolanaMethod;
-      }
-    }
+    const selectedPaymentMethod = compatibleMethods[safeIndex];
 
     setActivePaymentRequirements(selectedPaymentMethod);
   }, [
