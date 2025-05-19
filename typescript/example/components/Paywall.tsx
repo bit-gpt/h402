@@ -8,7 +8,7 @@ import { useEvmWallet } from "@/evm/context/EvmWalletContext";
 import { Coin, Network, PaymentStatus, PaymentUIProps } from "@/types/payment";
 import {
   generateAvailableNetworks,
-  getCompatiblePaymentMethods,
+  getCompatiblePaymentRequirements,
   normalizePaymentMethods,
 } from "@/utils/paymentUtils";
 import {
@@ -108,24 +108,8 @@ export default function PaymentUI({
       selectedCoin.name
     );
 
-    // First try to find a direct match based on the selected coin's token address
-    const matchingPaymentMethod = paymentMethods.find(
-      (method) =>
-        method.namespace === selectedNetwork.id &&
-        method.tokenSymbol === selectedCoin.name
-    );
-
-    if (matchingPaymentMethod) {
-      console.log(
-        "[DEBUG-PAYMENT-FLOW] Found exact match for selected coin:",
-        JSON.stringify(matchingPaymentMethod, null, 2)
-      );
-      setActivePaymentRequirements(matchingPaymentMethod);
-      return; // Exit early since we found an exact match
-    }
-
-    // If no direct match, fall back to compatible methods
-    const compatibleMethods = getCompatiblePaymentMethods(
+    // Get compatible methods for the selected network
+    const compatibleMethods = getCompatiblePaymentRequirements(
       paymentMethods,
       selectedNetwork.id
     );
@@ -133,17 +117,28 @@ export default function PaymentUI({
     if (compatibleMethods.length === 0) {
       console.log("[DEBUG-PAYMENT-FLOW] No compatible payment methods found");
       setActivePaymentRequirements(null);
-      return; // Exit early since no compatible methods exist
+      return;
     }
 
-    // Get the payment method at the selected index, defaulting to 0 if out of bounds
-    const safeIndex =
-      selectedPaymentMethodIndex < compatibleMethods.length
-        ? selectedPaymentMethodIndex
-        : 0;
-    const selectedPaymentMethod = compatibleMethods[safeIndex];
+    // Find a payment method matching the selected coin
+    const matchingPaymentMethod = compatibleMethods.find(
+      (method) => method.tokenSymbol === selectedCoin.name
+    );
 
-    setActivePaymentRequirements(selectedPaymentMethod);
+    if (matchingPaymentMethod) {
+      console.log(
+        "[DEBUG-PAYMENT-FLOW] Found matching payment method for coin:",
+        JSON.stringify(matchingPaymentMethod, null, 2)
+      );
+      setActivePaymentRequirements(matchingPaymentMethod);
+      return;
+    }
+
+    // If no match found, use the first compatible method
+    console.log(
+      "[DEBUG-PAYMENT-FLOW] No exact match found, using first compatible method"
+    );
+    setActivePaymentRequirements(compatibleMethods[0]);
   }, [
     paymentMethods,
     selectedPaymentMethodIndex,
@@ -304,8 +299,6 @@ export default function PaymentUI({
         />
       );
     }
-
-    console.log("activePaymentRequirements", activePaymentRequirements);
 
     if (selectedNetwork.id === "solana") {
       return (

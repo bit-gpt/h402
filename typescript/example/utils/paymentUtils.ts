@@ -1,6 +1,6 @@
 // paymentUtils.ts
 import { Network } from "@/types/payment";
-import {PaymentRequirements} from "@bit-gpt/h402/types";
+import { PaymentRequirements } from "@bit-gpt/h402/types";
 
 /**
  * Converts payment details to array if needed
@@ -18,37 +18,24 @@ export function normalizePaymentMethods(
 /**
  * Get compatible payment methods for the selected network
  */
-export function getCompatiblePaymentMethods(
-  paymentMethods: PaymentRequirements[],
+export function getCompatiblePaymentRequirements(
+  paymentRequirements: PaymentRequirements[],
   networkId: string
 ): PaymentRequirements[] {
-  if (!paymentMethods.length) {
-    console.log("[DEBUG-PAYMENT-FLOW] No payment methods available");
+  if (!paymentRequirements.length) {
     return [];
   }
 
-  if (networkId === "solana") {
-    // Only return payment methods with Solana namespace
-    const solanaMethods = paymentMethods.filter(
-      (method) => method.namespace === "solana"
-    );
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Filtered Solana payment methods:",
-      JSON.stringify(solanaMethods, null, 2)
-    );
-    return solanaMethods;
-  } else if (networkId === "bsc") {
-    // Only return payment methods with EVM namespace
-    const evmMethods = paymentMethods.filter(
-      (method) => method.namespace === "evm"
-    );
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Filtered EVM payment methods:",
-      JSON.stringify(evmMethods, null, 2)
-    );
-    return evmMethods;
-  }
-  return [];
+  // Filter methods by matching networkId
+  const compatibleMethods = paymentRequirements.filter((requirement) => {
+    if (networkId === "solana") {
+      return requirement.namespace === "solana";
+    } else if (networkId === "bsc") {
+      return requirement.networkId === "56"; // BSC mainnet chain ID
+    }
+    return false;
+  });
+  return compatibleMethods;
 }
 
 /**
@@ -60,12 +47,12 @@ export function generateAvailableNetworks(
   // Group payment methods by network
   const networkGroups: Record<string, PaymentRequirements[]> = {};
 
-  paymentRequirements.forEach((method) => {
-    const networkId = method.namespace || "";
+  paymentRequirements.forEach((requirement) => {
+    const networkId = requirement.namespace || "";
     if (!networkGroups[networkId]) {
       networkGroups[networkId] = [];
     }
-    networkGroups[networkId].push(method);
+    networkGroups[networkId].push(requirement);
   });
 
   // Map to network structure
@@ -73,16 +60,17 @@ export function generateAvailableNetworks(
 
   // Handle EVM networks
   if (networkGroups["evm"] && networkGroups["evm"].length > 0) {
-    const evmCoins = networkGroups["evm"].map((method) => {
+    const evmCoins = networkGroups["evm"].map((requirement) => {
       // Determine coin type from token type and address
-      const isNative = method.tokenType === "NATIVE";
-      const tokenSymbol = method.tokenSymbol || (isNative ? "BNB" : "TOKEN");
+      const isNative = requirement.tokenType === "NATIVE";
+      const tokenSymbol =
+        requirement.tokenSymbol || (isNative ? "BNB" : "TOKEN");
 
       return {
-        id: method.tokenAddress || "",
+        id: requirement.tokenAddress || "",
         name: tokenSymbol,
         icon: `/assets/coins/${tokenSymbol.toLowerCase()}.svg`,
-        paymentMethod: method, // Store the original payment method for reference
+        paymentMethod: requirement, // Store the original payment method for reference
       };
     });
 
@@ -96,16 +84,17 @@ export function generateAvailableNetworks(
 
   // Handle Solana networks
   if (networkGroups["solana"] && networkGroups["solana"].length > 0) {
-    const solanaCoins = networkGroups["solana"].map((method) => {
+    const solanaCoins = networkGroups["solana"].map((requirement) => {
       // Determine coin type from token type and address
-      const isNative = method.tokenType === "NATIVE";
-      const tokenSymbol = method.tokenSymbol || (isNative ? "SOL" : "USDC");
+      const isNative = requirement.tokenType === "NATIVE";
+      const tokenSymbol =
+        requirement.tokenSymbol || (isNative ? "SOL" : "USDC");
 
       return {
-        id: method.tokenAddress || "",
+        id: requirement.tokenAddress || "",
         name: tokenSymbol,
         icon: `/assets/coins/${tokenSymbol.toLowerCase()}.svg`,
-        paymentMethod: method, // Store the original payment method for reference
+        paymentMethod: requirement, // Store the original payment method for reference
       };
     });
 
