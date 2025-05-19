@@ -83,6 +83,43 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
         connector = injected({ shimDisconnect: true });
       }
 
+      // First connect without specifying chainId to check current chain
+      const initialResult = await connect(config, { connector });
+      
+      if (!initialResult.accounts?.[0]) {
+        throw new Error("Please select an account in your wallet");
+      }
+      
+      // Check if we need to switch chains
+      try {
+        const initialClient = await getWalletClient(config, {
+          account: initialResult.accounts[0],
+        });
+        
+        if (initialClient) {
+          const currentChainId = await initialClient.getChainId();
+          
+          // If not on BSC, we need to switch
+          if (currentChainId !== bsc.id) {
+            setStatusMessage("Please switch to BSC network in your wallet...");
+            
+            try {
+              // Request chain switch
+              await initialClient.switchChain({ id: bsc.id });
+              console.log("Chain switched successfully to BSC");
+            } catch (switchError) {
+              console.error("Failed to switch chain:", switchError);
+              throw new Error(
+                "Please manually switch to Binance Smart Chain (BSC) in your wallet and try again."
+              );
+            }
+          }
+        }
+      } catch (checkError) {
+        console.error("Error checking/switching chain:", checkError);
+      }
+      
+      // Now connect with the correct chain
       const result = await connect(config, { connector, chainId: bsc.id });
 
       if (!result.accounts?.[0]) {
@@ -132,6 +169,8 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
         } else if (error.message.includes("No Ethereum provider")) {
           message =
             "No Ethereum provider found. Please install a wallet extension.";
+        } else if (error.message.includes("chain of the connector") || error.message.includes("chain mismatch")) {
+          message = "Please switch to Binance Smart Chain (BSC) in your wallet and try again.";
         }
       }
       setStatusMessage(message);

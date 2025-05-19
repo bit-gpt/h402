@@ -1,132 +1,201 @@
-import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
-import { utils } from "../index.js";
+import { NextRequest, NextResponse } from "next/server";
+import { MiddlewareConfig, PaymentRequirements } from "../../types/protocol";
+import { getPaywallHtml } from "../../shared/paywall";
+import { toJsonSafe } from "../../shared/index.js";
 import {
-  FacilitatorResponse,
-  PaymentDetails,
   VerifyResponse,
-  SettleResponse,
+  FacilitatorResponse,
 } from "../../types/index.js";
-import {
-  configureSolanaClusters,
-  ClusterConfig,
-} from "../../shared/solana/clusterEndpoints.js";
-
-type OnSuccessHandler = (
-  request: NextRequest,
-  response: FacilitatorResponse<VerifyResponse | SettleResponse>
-) => Promise<NextResponse>;
+import { useFacilitator } from "../utils";
+import { safeBase64Decode } from "../../shared/base64.js";
 
 /**
- * Configuration options for the h402 middleware
- * @interface H402Config
+ * Enhanced h402NextMiddleware that supports multiple payment options via X-PAYMENT header
  */
-interface H402Config {
-  /** The routes to apply the middleware to */
-  routes: string[];
-  /** The paywall route to redirect to */
-  paywallRoute: string;
-  /** The payment details required for verification and settlement */
-  paymentDetails: PaymentDetails;
-  /** The URL of the facilitator endpoint */
-  facilitatorUrl?: string;
-  /** The error handler to use for the middleware */
-  onError?: (error: string, request: NextRequest) => NextResponse;
-  /** The success handler to use for the middleware */
-  onSuccess?: OnSuccessHandler;
-  /** Solana cluster configuration */
-  solanaConfig?: Partial<Record<string, ClusterConfig>>;
-}
+export function h402NextMiddleware(config: MiddlewareConfig) {
+  // Create facilitator client using the hook
+  const facilitatorUrl = config.facilitatorUrl || "https://facilitator.bitgpt.xyz";
+  const { verify, settle } = useFacilitator(facilitatorUrl);
 
-/**
- * Creates a middleware for h402 payment verification and settlement
- *
- * @param {H402Config} config - Configuration options for the middleware
- * @returns {(request: NextRequest) => Promise<NextResponse>} Middleware handler function
- *
- * @example
- * ```ts
- * // middleware.ts
- * import { h402NextMiddleware } from '@bit-gpt/h402/middleware'
- * import { paymentDetails } from './config/paymentDetails'
- *
- * export const middleware = h402NextMiddleware({
- *   routes: ['/paywalled_route'],
- *   paywallRoute: '/paywall',
- *   paymentDetails,
- *   facilitatorUrl: 'http://localhost:3000/api/facilitator',
- * })
- *
- * export const config = {
- *   matcher: '/paywalled_route'
- * }
- * ```
- */
-function h402NextMiddleware(config: H402Config) {
-  const {
-    facilitatorUrl,
-    paymentDetails,
-    onError,
-    onSuccess,
-    routes,
-    paywallRoute,
-    solanaConfig,
-  } = config;
-  const { verify, settle } = utils.useFacilitator(
-    facilitatorUrl ?? "https://facilitator.bitgpt.xyz"
-  );
-
-  if (solanaConfig) {
-    configureSolanaClusters(solanaConfig);
-  }
-
-  const defaultErrorHandler = (request: NextRequest) => {
-    const redirectUrl = new URL(paywallRoute, request.url);
-    return NextResponse.rewrite(redirectUrl, { status: 402 });
+  /**
+   * Create a 402 response for API requests
+   */
+  const createApiPaymentRequiredResponse = (
+    error: string,
+    paymentRequirements: PaymentRequirements[]
+  ) => {
+    return NextResponse.json(
+      {
+        error,
+        paymentRequirements: toJsonSafe(paymentRequirements),
+      },
+      { status: 402 }
+    );
   };
 
-  const handleError = (error: string, request: NextRequest) =>
-    onError ? onError(error, request) : defaultErrorHandler(request);
+  /**
+   * Handle browser requests that require payment
+   */
+  const handleBrowserPaymentRequired = (
+    request: NextRequest,
+    paymentRequirements: PaymentRequirements[]
+  ) => {
+    // Check if a paywall route is configured
+    if (config.paywallRoute) {
+      const redirectUrl = new URL(config.paywallRoute, request.url);
 
-  return async function handler(request: NextRequest) {
-    const pathname = request.nextUrl.pathname;
+      // Set the return URL
+      redirectUrl.searchParams.set("returnUrl", request.url);
 
-    if (!routes.some((route) => pathname.startsWith(route))) {
+      // Set the payment requirements
+      redirectUrl.searchParams.set(
+        "requirements",
+        JSON.stringify(toJsonSafe(paymentRequirements))
+      );
+
+      // Extract and pass along the prompt parameter if it exists in the original request
+      const originalUrl = new URL(request.url);
+      const prompt = originalUrl.searchParams.get("prompt");
+      if (prompt) {
+        redirectUrl.searchParams.set("prompt", prompt);
+      }
+
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Inline HTML paywall if no paywall route is configured
+    return new NextResponse(
+      getPaywallHtml({
+        paymentRequirements,
+        currentUrl: request.url,
+      }),
+      {
+        status: 402,
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  };
+
+  return async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
+
+    // Find matching route
+    const matchingRoute = Object.entries(config.routes).find(([route, _]) => {
+      if (route.endsWith("*")) {
+        return pathname.startsWith(route.slice(0, -1));
+      }
+      return pathname === route;
+    });
+
+    // If no matching route, allow the request to proceed
+    if (!matchingRoute) {
       return NextResponse.next();
     }
 
-    const payment = request.nextUrl.searchParams.get("402base64");
+    const [_, routeConfig] = matchingRoute;
+    const paymentRequirements = routeConfig.paymentRequirements;
+    const paymentHeader = request.headers.get("X-PAYMENT");
+    const accept = request.headers.get("Accept");
+    const isHtmlRequest = accept?.includes("text/html");
 
-    if (!payment) {
-      return handleError("Payment Required", request);
+    // If no payment header provided, return payment required response
+    if (!paymentHeader) {
+      return isHtmlRequest
+        ? handleBrowserPaymentRequired(request, paymentRequirements)
+        : createApiPaymentRequiredResponse("Payment required", paymentRequirements);
     }
 
-    const verifyResponse = await verify(payment, paymentDetails);
+    // Try to verify the payment
+    let verificationResult: FacilitatorResponse<VerifyResponse> | null = null;
+    let selectedRequirement = null;
 
-    if (verifyResponse.error) {
-      return handleError(verifyResponse.error, request);
+    try {
+      // Try to match the payment payload with appropriate requirement
+      const decodedPayload = safeBase64Decode(paymentHeader);
+      const paymentPayload = JSON.parse(decodedPayload);
+      const { namespace, networkId, scheme, resource } = paymentPayload;
+
+      console.log(
+        `[Payment] Decoded payload: namespace=${namespace}, networkId=${networkId}, scheme=${scheme}, resource=${resource}`
+      );
+
+      // Find matching payment requirements
+      const matchingRequirements = paymentRequirements.filter(
+        req =>
+          req.namespace === namespace &&
+          req.networkId === networkId &&
+          req.scheme === scheme &&
+          req.resource === resource
+      );
+
+      if (matchingRequirements.length > 0) {
+        // Try each matching requirement until one succeeds
+        for (const requirement of matchingRequirements) {
+          const result = await verify(paymentHeader, requirement);
+          if (!result.error) {
+            verificationResult = result;
+            selectedRequirement = requirement;
+            break;
+          }
+        }
+      } else {
+        console.log(`[Payment] No matching requirements found for payload`);
+      }
+    } catch (error) {
+      console.error("[Payment] Error decoding payload:", error);
     }
 
-    const paymentType = verifyResponse.data?.type;
+    console.log("verificationResult", verificationResult);
+    console.log("selectedRequirement", selectedRequirement);
 
-    if (paymentType === "payload") {
-      const settleResponse = await settle(payment, paymentDetails);
+    // If no successful verification yet, return error
+    if (!verificationResult || verificationResult.error) {
+      const errorMessage = verificationResult?.error || "Payment verification failed: Invalid payment payload";
+      return isHtmlRequest
+        ? handleBrowserPaymentRequired(request, paymentRequirements)
+        : createApiPaymentRequiredResponse(errorMessage, paymentRequirements);
+    }
 
-      if (settleResponse.error) {
-        return handleError(settleResponse.error, request);
+    // Payment verified, check if settlement is needed
+    try {
+      const paymentType = verificationResult.data?.type;
+      const response = NextResponse.next();
+      let responseData;
+
+      console.log("Settle paymentType", paymentType);
+
+      if (paymentType === "payload" && selectedRequirement) {
+        // Needs settlement
+        const settlement = await settle(paymentHeader, selectedRequirement);
+
+        console.log("settlement", settlement);
+
+        if (settlement.error) {
+          throw new Error(settlement.error);
+        }
+
+        responseData = {
+          success: true,
+          transaction: settlement.data?.transaction,
+          network: settlement.data?.network,
+          payer: settlement.data?.payer,
+        };
+      } else {
+        // Already verified/settled
+        responseData = {
+          success: true,
+          ...verificationResult.data,
+        };
       }
 
-      if (onSuccess) {
-        return await (onSuccess as OnSuccessHandler)(request, settleResponse);
-      }
-    } else if (onSuccess) {
-      return await (onSuccess as OnSuccessHandler)(request, verifyResponse);
+      // Add payment response header
+      response.headers.set("X-PAYMENT-RESPONSE", JSON.stringify(responseData));
+      return response;
+    } catch (error) {
+      const errorMessage = `Payment settlement failed: ${error instanceof Error ? error.message : String(error)}`;
+      return isHtmlRequest
+        ? handleBrowserPaymentRequired(request, paymentRequirements)
+        : createApiPaymentRequiredResponse(errorMessage, paymentRequirements);
     }
-
-    request.nextUrl.searchParams.delete("402base64");
-
-    return NextResponse.next();
   };
 }
-
-export { h402NextMiddleware };

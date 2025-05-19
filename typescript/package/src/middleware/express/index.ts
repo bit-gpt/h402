@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { utils } from "../index.js";
 import {
   FacilitatorResponse,
-  PaymentDetails,
+  PaymentRequirements,
   VerifyResponse,
   SettleResponse,
 } from "../../types/index.js";
@@ -27,7 +27,7 @@ interface H402Config {
   /** The paywall route to redirect to */
   paywallRoute: string;
   /** The payment details required for verification and settlement */
-  paymentDetails: PaymentDetails;
+  paymentRequirements: PaymentRequirements;
   /** The URL of the facilitator endpoint */
   facilitatorUrl?: string;
   /** The error handler to use for the middleware */
@@ -49,14 +49,14 @@ interface H402Config {
  * // app.ts
  * import express from 'express'
  * import { h402ExpressMiddleware } from '@bit-gpt/h402/middleware'
- * import { paymentDetails } from './config/paymentDetails'
+ * import { paymentRequirements } from './config/paymentRequirements'
  *
  * const app = express()
  *
  * app.use(h402ExpressMiddleware({
  *   routes: ['/paywalled_route'],
  *   paywallRoute: '/paywall',
- *   paymentDetails,
+ *   paymentRequirements,
  *   facilitatorUrl: 'http://localhost:3000/api/facilitator',
  * }))
  * ```
@@ -64,7 +64,7 @@ interface H402Config {
 function h402ExpressMiddleware(config: H402Config) {
   const {
     facilitatorUrl,
-    paymentDetails,
+    paymentRequirements,
     onError,
     onSuccess,
     routes,
@@ -103,7 +103,7 @@ function h402ExpressMiddleware(config: H402Config) {
       return handleError("Payment Required", req, res);
     }
 
-    const verifyResponse = await verify(payment, paymentDetails);
+    const verifyResponse = await verify(payment, paymentRequirements);
 
     if (verifyResponse.error) {
       return handleError(verifyResponse.error, req, res);
@@ -112,7 +112,7 @@ function h402ExpressMiddleware(config: H402Config) {
     const paymentType = verifyResponse.data?.type;
 
     if (paymentType === "payload") {
-      const settleResponse = await settle(payment, paymentDetails);
+      const settleResponse = await settle(payment, paymentRequirements);
 
       if (settleResponse.error) {
         return handleError(settleResponse.error, req, res);

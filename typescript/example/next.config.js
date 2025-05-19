@@ -11,4 +11,5 @@ module.exports = {
     BASE_RPC_URL: process.env.BASE_RPC_URL,
     BSC_RPC_URL: process.env.BSC_RPC_URL,
   },
+  reactStrictMode: false
 };

@@ -1,14 +1,14 @@
 import { PublicActions } from "viem";
 import { exact } from "../schemes/index.js";
-import { parsePaymentDetailsForAmount } from "../shared/parsePaymentDetails.js";
-import { PaymentDetails, Hex } from "../types/index.js";
+import { parsePaymentRequirementsForAmount } from "../shared/parsePaymentRequirements.js";
+import { PaymentRequirements, Hex } from "../types/index.js";
 import { utils } from "./index.js";
 
 /**
  * Settles a payment by broadcasting the transaction to the blockchain.
  *
  * @param {string} payload - The encoded payment payload to settle
- * @param {PaymentDetails} paymentDetails - The payment details for the transaction
+ * @param {PaymentRequirements} paymentRequirements - The payment details for the transaction
  * @param {string} privateKey - The private key used to sign and broadcast the transaction
  * @returns {Promise<{ txHash: string } | { errorMessage: string }>} A promise that resolves to either a transaction hash or an error message
  *
@@ -23,7 +23,7 @@ import { utils } from "./index.js";
  */
 async function settle(
   payload: string,
-  paymentDetails: PaymentDetails,
+  paymentRequirements: PaymentRequirements,
   privateKey: string
 ): Promise<{ txHash: string } | { errorMessage: string }> {
   try {
@@ -32,12 +32,12 @@ async function settle(
     }
 
     const client = utils.createSignerClient(
-      paymentDetails.networkId,
+      paymentRequirements.networkId,
       privateKey as Hex
     );
 
-    paymentDetails = await parsePaymentDetailsForAmount(
-      paymentDetails,
+    paymentRequirements = await parsePaymentRequirementsForAmount(
+      paymentRequirements,
       client as PublicActions
     );
 
@@ -45,7 +45,11 @@ async function settle(
 
     switch (payment.scheme) {
       case "exact":
-        return await exact.handlers.evm.settle(client, payment, paymentDetails);
+        return await exact.handlers.evm.settle(
+          client,
+          payment,
+          paymentRequirements
+        );
       default:
         return { errorMessage: "Unsupported scheme" };
     }

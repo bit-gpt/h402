@@ -1,47 +1,45 @@
-type PaymentDetails = {
-  // Scheme of the payment protocol to use
-  scheme: string;
-  // Namespace for the receiving blockchain network
-  namespace: string | null;
-  // Network of the blockchain to send payment on
-  networkId: string;
-  // Amount required to access the resource in atomic units
-  amountRequired: number | bigint;
-  // Format of the amount required
-  amountRequiredFormat: "atomic" | "formatted";
-  // Address to pay for accessing the resource
+type BlockchainType = "evm" | "solana";
+
+type AmountFormat = "humanReadable" | "smallestUnit";
+
+type PaymentRequirements = {
+  namespace: BlockchainType;
+  tokenAddress: string; // Token address or special value for native tokens
+  tokenType: string;
+  tokenDecimals: number;
+  tokenSymbol: string;
+  amountRequired: bigint | number;
+  amountRequiredFormat: AmountFormat;
   payToAddress: string;
-  // Token contract
-  tokenAddress: string;
-  // Identifier of what the user pays for
+  networkId: string; // Chain ID for EVM, cluster name for Solana
+  description?: string;
   resource: string;
-  // Description of the resource
-  description: string;
-  // Mime type of the rescource response
-  mimeType: string;
-  // Output schema of the resource response
-  outputSchema: object | null;
-  // Time in seconds it may be before the payment can be settaled
+  scheme: string;
+  mimeType?: string;
+  outputSchema?: any;
   estimatedProcessingTime: number;
-  // Extra informations about the payment for the scheme
-  extra: Record<string, any> | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
-  // Maximum amount required to access the resource in amount ** 10 ** decimals
-  maxAmountRequired?: bigint | null;
-  // Time in seconds it may be before the payment can be settaled
-  requiredDeadlineSeconds?: number | null; */
+  extra?: any;
+  maxAmountRequired?: bigint | number;
+  requiredDeadlineSeconds?: number;
+};
+
+type RouteConfig = {
+  paymentRequirements: PaymentRequirements[];
+};
+
+type MiddlewareConfig = {
+  routes: Record<string, RouteConfig>;
+  facilitatorUrl?: string;
+  paywallRoute?: string;
 };
 
 type PaymentRequired = {
   // Version of the h402 payment protocol
   version: number;
   // List of payment details that the resource server accepts (A resource server may accept multiple tokens/chains)
-  accepts: PaymentDetails[];
+  accepts: PaymentRequirements[];
   // Message for error(s) that occured while processing payment
   error: string | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
-  // Version of the x402 payment protocol
-  x402Version?: number | null; */
 };
 
 type PaymentPayload<T> = {
@@ -59,4 +57,12 @@ type PaymentPayload<T> = {
   resource: string;
 };
 
-export { PaymentDetails, PaymentRequired, PaymentPayload };
+export {
+  PaymentRequirements,
+  PaymentRequired,
+  PaymentPayload,
+  AmountFormat,
+  BlockchainType,
+  RouteConfig,
+  MiddlewareConfig,
+};

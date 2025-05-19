@@ -1,189 +1,401 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useContext } from "react";
-import PaymentSelector from "@/components/PaymentSelector";
-import EvmPayment from "@/evm/components/EvmPayment";
-import ImagePromptInput from "@/components/ImagePromptInput";
-import { useEvmWallet } from "@/evm/context/EvmWalletContext";
-// Import individual components instead of the combined one
-import SolanaWalletConnector from "@/solana/components/SolanaWalletConnector";
-import SolanaPaymentProcessor from "@/solana/components/SolanaPaymentProcessor";
-import { SelectedWalletAccountContext } from "@/solana/context/SelectedWalletAccountContext";
+import {useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
+import {useWallets} from "@wallet-standard/react";
+import {useIsDarkMode} from "./ThemeProvider";
+import {useEvmWallet} from "@/evm/context/EvmWalletContext";
+import {Coin, Network, PaymentStatus, PaymentUIProps} from "@/types/payment";
+import {generateAvailableNetworks, getCompatiblePaymentMethods, normalizePaymentMethods,} from "@/utils/paymentUtils";
+import {CancelButton, Dropdown, ErrorMessage, NoPaymentOptions,} from "@/components/PaywallComponents";
+import {useWalletDetection} from "@/hooks/useWalletDetection";
+import {useCompatibleWallet} from "@/hooks/useCompatibleWallet";
+import SolanaPaymentHandler from "@/solana/components/SolanaPaymentHandler";
+import EvmPaymentHandler from "@/evm/components/EvmPaymentHandler";
+import {formatAmountForDisplay} from "@/utils/amountFormatting";
 
-const MIN_PROMPT_LENGTH = 3;
+/**
+ * Payment UI component with network/coin selection
+ * and integrated payment button
+ */
+export default function PaymentUI({
+                                    prompt,
+                                    returnUrl,
+                                    paymentRequirements,
+                                  }: PaymentUIProps) {
+  const router = useRouter();
+  const wallets = useWallets();
+  const {connectedAddress: evmAddress} = useEvmWallet();
+  const isDarkMode = useIsDarkMode();
+  const {isTrueEvmProvider} = useWalletDetection(evmAddress);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
 
-// Define payment method type
-type PaymentMethod = "evm" | "solana";
-
-// Create a combined Solana payment components wrapper
-function SolanaPaymentComponents({
-  isPromptValid,
-  isProcessing,
-  setIsProcessing,
-  onWalletConnectionChange,
-  buttonRef,
-  walletConnected,
-  prompt,
-}: {
-  isPromptValid: () => boolean;
-  isProcessing: boolean;
-  setIsProcessing: (processing: boolean) => void;
-  onWalletConnectionChange: (isConnected: boolean) => void;
-  buttonRef: React.RefObject<HTMLButtonElement | null>;
-  walletConnected: boolean;
-  prompt: string;
-}) {
-  // Add a state to track when the wallet is fully connected with an account
-  const [selectedAccount] = useContext(SelectedWalletAccountContext);
-  
-  // Only consider wallet connected when we have both the flag and a valid account
-  const isWalletFullyConnected = walletConnected && !!selectedAccount;
-
-  return (
-    <div className="space-y-6">
-      {/* Wallet connector is always shown */}
-      <SolanaWalletConnector
-        onWalletConnectionChange={onWalletConnectionChange}
-      />
-
-      {/* Payment processor is only shown when wallet is fully connected */}
-      {isWalletFullyConnected && (
-        <SolanaPaymentProcessor
-          isPromptValid={isPromptValid}
-          isProcessing={isProcessing}
-          setIsProcessing={setIsProcessing}
-          ref={buttonRef as React.RefObject<HTMLButtonElement>}
-          prompt={prompt}
-        />
-      )}
-    </div>
+  // Convert payment details to array if needed
+  const paymentMethods = useMemo(
+    () => normalizePaymentMethods(paymentRequirements),
+    [paymentRequirements]
   );
-}
 
-export default function Paywall() {
-  // Shared state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("evm");
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [evmWalletConnected, setEvmWalletConnected] = useState(false);
-  const [solanaWalletConnected, setSolanaWalletConnected] = useState(false);
-  const [canProcessPayment, setCanProcessPayment] = useState(false);
+  // Generate network and coin options from payment requirements
+  const availableNetworks = useMemo(
+    () => generateAvailableNetworks(paymentMethods),
+    [paymentMethods]
+  );
 
-  // Refs for payment buttons
-  const evmPaymentButtonRef = useRef<HTMLButtonElement>(null);
-  const solanaPaymentButtonRef = useRef<HTMLButtonElement | null>(null);
+  // State for selections - initialize with empty defaults
+  const [selectedNetwork, setSelectedNetwork] = useState<Network>({
+    id: "",
+    name: "",
+    icon: "",
+    coins: [],
+  });
 
-  // Get wallet connection state based on selected payment method
-  const { connectedAddress } = useEvmWallet();
+  const [selectedCoin, setSelectedCoin] = useState<Coin>({
+    id: "",
+    name: "",
+    icon: "",
+  });
 
-  // Update EVM wallet connection state when address changes
+  const [dropdownState, setDropdownState] = useState({
+    network: false,
+    coin: false,
+  });
+
+  const [selectedPaymentMethodIndex, setSelectedPaymentMethodIndex] =
+    useState(0);
+
+  // Get compatible wallet
+  const {selectedWallet} = useCompatibleWallet(
+    selectedNetwork,
+    wallets,
+    isTrueEvmProvider
+  );
+
+  // Reset payment method index when network changes and update selected network
   useEffect(() => {
-    setEvmWalletConnected(!!connectedAddress);
-  }, [connectedAddress]);
+    setSelectedPaymentMethodIndex(0);
 
-  // Determine if wallet is connected based on payment method
-  const walletConnected =
-    paymentMethod === "evm" ? evmWalletConnected : solanaWalletConnected;
-
-  // Check if prompt is valid
-  const isPromptValid = useCallback(() => {
-    return imagePrompt.trim().length >= MIN_PROMPT_LENGTH;
-  }, [imagePrompt]);
-
-  // Update canProcessPayment when relevant state changes
-  useEffect(() => {
-    setCanProcessPayment(walletConnected && isPromptValid() && !isProcessing);
-  }, [walletConnected, isPromptValid, isProcessing]);
-
-  // Handle prompt change
-  const handlePromptChange = useCallback((value: string) => {
-    setImagePrompt(value);
-  }, []);
-
-  // Method selection handler
-  const handleMethodChange = useCallback(
-    (method: PaymentMethod) => {
-      if (!isProcessing) {
-        setPaymentMethod(method);
+    // If there are available networks
+    if (availableNetworks.length > 0) {
+      // If the current network is not in the available networks list, select the first available one
+      if (
+        !availableNetworks.some((network) => network.id === selectedNetwork.id)
+      ) {
+        setSelectedNetwork(availableNetworks[0]);
+        setSelectedCoin(availableNetworks[0].coins[0]);
       }
-    },
-    [isProcessing]
-  );
+    }
+  }, [selectedNetwork.id, availableNetworks]);
 
-  // Handler for Solana wallet connection status
-  const handleSolanaWalletConnectionChange = useCallback(
-    (isConnected: boolean) => {
-      setSolanaWalletConnected(isConnected);
-    },
-    []
-  );
+  // Get the active payment details based on selected coin
+  const activePaymentRequirements = useMemo(() => {
+    console.log(
+      "[DEBUG-PAYMENT-FLOW] Getting active payment details for network:",
+      selectedNetwork.id
+    );
 
-  // Handle generate image button click
-  const handleGenerateImage = useCallback(async () => {
-    if (!canProcessPayment) return Promise.resolve();
+    // Find payment method that matches the selected network and coin
+    const matchingPaymentMethod = paymentMethods.find(
+      (method) =>
+        method.namespace === selectedNetwork.id &&
+        method.tokenAddress === selectedCoin.paymentRequirements?.tokenAddress
+    );
 
-    // Trigger the appropriate payment handler based on payment method
-    if (paymentMethod === "evm" && evmPaymentButtonRef.current) {
-      evmPaymentButtonRef.current.click();
-    } else if (paymentMethod === "solana" && solanaPaymentButtonRef.current) {
-      solanaPaymentButtonRef.current.click();
+    // If we found a direct match based on the selected coin, use that
+    if (matchingPaymentMethod) {
+      console.log(
+        "[DEBUG-PAYMENT-FLOW] Using payment method from selected coin:",
+        JSON.stringify(matchingPaymentMethod, null, 2)
+      );
+      return matchingPaymentMethod;
     }
 
-    return Promise.resolve();
-  }, [canProcessPayment, paymentMethod]);
+    // Otherwise fall back to the old method
+    const compatibleMethods = getCompatiblePaymentMethods(
+      paymentMethods,
+      selectedNetwork.id
+    );
+
+    if (compatibleMethods.length === 0) {
+      console.log("[DEBUG-PAYMENT-FLOW] No compatible payment methods found");
+      return null;
+    }
+
+    const safeIndex =
+      selectedPaymentMethodIndex < compatibleMethods.length
+        ? selectedPaymentMethodIndex
+        : 0;
+
+    // Make sure we're using the correct payment details for the selected network
+    const paymentRequirements = compatibleMethods[safeIndex];
+
+    // Validate that we're not using an EVM address for Solana payments
+    if (paymentRequirements.namespace === "solana") {
+      if (paymentRequirements.payToAddress?.startsWith("0x")) {
+        // Try to find a valid Solana payment method
+        const validSolanaMethod = compatibleMethods.find(
+          (method) =>
+            method.namespace === "solana" &&
+            !method.payToAddress?.startsWith("0x")
+        );
+
+        if (validSolanaMethod) {
+          return validSolanaMethod;
+        }
+      }
+    }
+
+    return paymentRequirements;
+  }, [
+    paymentMethods,
+    selectedPaymentMethodIndex,
+    selectedNetwork.id,
+    selectedCoin.paymentRequirements?.tokenAddress,
+  ]);
+
+  // Event handlers
+  const handlePaymentSuccess = async (
+    paymentHeader: string,
+    txHash: string
+  ) => {
+    console.log("Payment successful:", paymentHeader);
+    console.log("Transaction hash:", txHash);
+
+    if (returnUrl) {
+      try {
+        console.log("Starting image generation...");
+        const response = await fetch(returnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-PAYMENT": paymentHeader,
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to start image generation: ${response.status}`
+          );
+        }
+
+        const data = await response.json();
+        if (!data.requestId) {
+          throw new Error("No request ID received from server");
+        }
+
+        // At this point, the facilitator has verified the transaction
+        // Now we can safely set the payment status to success
+        setPaymentStatus("success");
+
+        // Start checking the status with the requestId
+        await checkImageStatus(15, 2000, data.requestId);
+      } catch (error) {
+        console.error("Error starting image generation:", error);
+        alert("Failed to start image generation. Please try again.");
+        window.location.href = "/";
+      }
+    }
+  };
+
+  const checkImageStatus = async (
+    retriesLeft: number,
+    delay: number,
+    requestId: string
+  ) => {
+    try {
+      console.log(`Checking image status (${retriesLeft} retries left)...`);
+      const response = await fetch(`/api/generate-image/status/${requestId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to check status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status === "completed" && data.filename) {
+        window.location.href = `/image?filename=${data.filename}`;
+        return;
+      } else if (data.status === "failed") {
+        throw new Error(data.error || "Image generation failed");
+      } else if (data.status === "processing") {
+        if (retriesLeft > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return checkImageStatus(retriesLeft - 1, delay, requestId);
+        } else {
+          throw new Error("Timed out waiting for image generation");
+        }
+      } else {
+        throw new Error(`Unknown status: ${data.status}`);
+      }
+    } catch (error) {
+      console.error("Error checking image status:", error);
+      if (retriesLeft > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return checkImageStatus(retriesLeft - 1, delay, requestId);
+      } else {
+        alert("Image generation failed. Please try again.");
+        window.location.href = "/";
+      }
+    }
+  };
+
+  const handlePaymentError = (error: Error) => {
+    console.error("Payment failed:", error);
+    // Could add toast notification here
+  };
+
+  const toggleDropdown = (dropdownName: "network" | "coin") => {
+    setDropdownState((prev) => ({
+      ...prev,
+      [dropdownName]: !prev[dropdownName],
+    }));
+  };
+
+  const selectNetwork = (network: Network) => {
+    setSelectedNetwork(network);
+    setSelectedCoin(network.coins[0]);
+    toggleDropdown("network");
+  };
+
+  const selectCoin = (coin: Coin) => {
+    setSelectedCoin(coin);
+    toggleDropdown("coin");
+  };
+
+  const renderPaymentButton = () => {
+    if (!activePaymentRequirements) {
+      return null;
+    }
+
+    const isValidMethod =
+      activePaymentRequirements.namespace ===
+      (selectedNetwork.id === "solana" ? "solana" : "evm");
+
+    // For Solana, we need to check for a compatible wallet
+    if (selectedNetwork.id === "solana" && !selectedWallet) {
+      return (
+        <ErrorMessage
+          message="No compatible Solana wallet found. Please install a supported wallet."
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+
+    // For BSC/EVM, we need to check if a true EVM provider is available
+    if (selectedNetwork.id === "bsc" && !isTrueEvmProvider) {
+      return (
+        <ErrorMessage
+          message="No compatible EVM wallet found. Please install a supported wallet."
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+
+    // Check if the payment method matches the selected network
+    if (!isValidMethod) {
+      return (
+        <ErrorMessage
+          message="Please select a valid payment method."
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+
+    if (selectedNetwork.id === "solana") {
+      return (
+        <SolanaPaymentHandler
+          amount={formatAmountForDisplay({
+            amount: activePaymentRequirements.amountRequired?.toString() ?? 0,
+            format: activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
+            symbol: selectedCoin.name,
+            decimals: activePaymentRequirements.tokenDecimals
+          })}
+          wallet={selectedWallet}
+          prompt={prompt}
+          paymentRequirements={activePaymentRequirements}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+          setPaymentStatus={setPaymentStatus}
+          paymentStatus={paymentStatus}
+        />
+      );
+    } else if (selectedNetwork.id === "bsc") {
+      return (
+        <EvmPaymentHandler
+          amount={formatAmountForDisplay({
+            amount: activePaymentRequirements.amountRequired?.toString() ?? 0,
+            format: activePaymentRequirements.amountRequiredFormat ?? "smallestUnit",
+            symbol: selectedCoin.name,
+            decimals: activePaymentRequirements.tokenDecimals
+          })}
+          prompt={prompt}
+          paymentRequirements={activePaymentRequirements}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+          setPaymentStatus={setPaymentStatus}
+          paymentStatus={paymentStatus}
+        />
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-full">
-      <div className="w-full max-w-[800px] mx-auto p-8">
-        <h1 className="text-2xl font-semibold mb-2">
-          402 pay Image Generation Example
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 text-base mb-8">
-          Connect your wallet, enter a prompt, and pay a small fee to generate
-          an AI image using the HTTP 402 payment protocol.
-        </p>
+    <div
+      className={`border rounded-lg p-6 shadow-sm ${isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}`}
+    >
+      <h2 className="text-xl font-semibold mb-6">Pay from your Wallet</h2>
 
-        {/* Payment Method Selection */}
-        <PaymentSelector
-          paymentMethod={paymentMethod}
-          onMethodChange={handleMethodChange}
-          disabled={isProcessing}
+      {availableNetworks.length === 0 ? (
+        <NoPaymentOptions
+          returnUrl={returnUrl}
+          onReturn={() => router.push(returnUrl || "/")}
+          isDarkMode={isDarkMode}
         />
+      ) : (
+        <>
+          {/* Network Selection */}
+          {availableNetworks.length > 1 && (
+            <Dropdown
+              type="network"
+              items={availableNetworks}
+              selected={selectedNetwork}
+              onSelect={selectNetwork}
+              isOpen={dropdownState.network}
+              toggleDropdown={() => toggleDropdown("network")}
+              isDarkMode={isDarkMode}
+            />
+          )}
 
-        {/* Payment Component */}
-        {paymentMethod === "evm" ? (
-          <EvmPayment
-            isPromptValid={isPromptValid}
-            prompt={imagePrompt}
-            isProcessing={isProcessing}
-            setIsProcessing={setIsProcessing}
-            ref={evmPaymentButtonRef}
-          />
-        ) : (
-          <SolanaPaymentComponents
-            isPromptValid={isPromptValid}
-            isProcessing={isProcessing}
-            setIsProcessing={setIsProcessing}
-            onWalletConnectionChange={handleSolanaWalletConnectionChange}
-            buttonRef={solanaPaymentButtonRef}
-            walletConnected={solanaWalletConnected}
-            prompt={imagePrompt}
-          />
-        )}
+          {/* Coin Selection */}
+          {selectedNetwork.coins.length > 0 && (
+            <Dropdown
+              type="coin"
+              items={selectedNetwork.coins}
+              selected={selectedCoin}
+              onSelect={(coin) => selectCoin(coin as Coin)}
+              isOpen={dropdownState.coin}
+              toggleDropdown={() => toggleDropdown("coin")}
+              isDarkMode={isDarkMode}
+            />
+          )}
 
-        {/* Prompt Input - Only display when a wallet is connected */}
-        <ImagePromptInput
-          value={imagePrompt}
-          onChange={handlePromptChange}
-          disabled={isProcessing}
-          minLength={MIN_PROMPT_LENGTH}
-          paymentMethod={paymentMethod}
-          walletConnected={walletConnected}
-          isProcessing={isProcessing}
-          canProcessPayment={canProcessPayment}
-          onGenerateImage={handleGenerateImage}
-        />
-      </div>
+          {/* Payment Button */}
+          {renderPaymentButton()}
+
+          {/* Return button */}
+          {returnUrl && (
+            <CancelButton onReturn={() => router.push('/')}/>
+          )}
+        </>
+      )}
     </div>
   );
 }

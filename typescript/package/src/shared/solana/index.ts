@@ -2,7 +2,6 @@
 export * from './clusterEndpoints.js';
 export * from './fetchTx.js';
 export * from './parseDecimals.js';
-export * from './parseMemo.js';
 export * from './tokenAddress.js';
 
 // Constants

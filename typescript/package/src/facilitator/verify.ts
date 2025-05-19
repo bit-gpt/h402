@@ -1,17 +1,21 @@
 import { exact } from "../schemes/index.js";
-import { PaymentDetails, VerifyResponse } from "../types";
+import {
+  PaymentRequirements,
+  VerifyResponse,
+  exact as ExactType,
+  PaymentPayload,
+} from "../types";
 import { PublicActions } from "viem";
 import { evm } from "../shared/index.js";
 import { utils } from "./index.js";
-import { parsePaymentDetailsForAmount } from "../shared/parsePaymentDetails.js";
-import { ExactSolanaBroadcastPaymentPayload } from "../types/scheme/exact/solana/index.js";
+import { parsePaymentRequirementsForAmount } from "../shared/parsePaymentRequirements.js";
 import { safeBase64Decode } from "../shared/base64.js";
 
 /**
  * Verifies a payment payload against the provided payment details.
  *
  * @param {string} payload - The encoded payment payload to verify
- * @param {PaymentDetails} paymentDetails - The payment details to verify against
+ * @param {PaymentRequirements} paymentRequirements - The payment details to verify against
  * @returns {Promise<VerifyResponse>} A promise that resolves to the verification result
  *
  * @description
@@ -26,20 +30,17 @@ import { safeBase64Decode } from "../shared/base64.js";
  */
 async function verify(
   payload: string,
-  paymentDetails: PaymentDetails
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
   try {
-    const client = utils.createPublicClient(paymentDetails.networkId);
+    const decodedPayload = safeBase64Decode(payload);
+    const paymentPayload = JSON.parse(decodedPayload) as PaymentPayload<any>;
+    let payloadNamespace = paymentPayload.namespace;
 
-    paymentDetails = await parsePaymentDetailsForAmount(
-      paymentDetails,
-      client as PublicActions
-    );
-
-    // Use the appropriate handler based on namespace
-    switch (paymentDetails.namespace) {
-      case "eip155": {
-        if (!evm.isChainSupported(paymentDetails.networkId)) {
+    switch (payloadNamespace) {
+      case "evm": {
+        console.log("[DEBUG-PAYMENT-FLOW] Verifying EVM payload");
+        if (!evm.isChainSupported(paymentRequirements.networkId)) {
           return {
             isValid: false,
             errorMessage: "Unsupported namespace or chain",
@@ -48,9 +49,20 @@ async function verify(
 
         const payment = exact.handlers.evm.utils.decodePaymentPayload(payload);
 
+        const client = utils.createPublicClient(paymentRequirements.networkId);
+
+        paymentRequirements = await parsePaymentRequirementsForAmount(
+          paymentRequirements,
+          client as PublicActions
+        );
+
         switch (payment.scheme) {
           case "exact":
-            return await exact.handlers.evm.verify(client, payment, paymentDetails);
+            return await exact.handlers.evm.verify(
+              client,
+              payment,
+              paymentRequirements
+            );
           default:
             return {
               isValid: false,
@@ -59,12 +71,8 @@ async function verify(
         }
       }
       case "solana": {
+        console.log("[DEBUG-PAYMENT-FLOW] Verifying Solana payload");
         try {
-          // Decode the base64 payload
-          const decodedPayload = safeBase64Decode(payload);
-          const paymentPayload = JSON.parse(decodedPayload) as ExactSolanaBroadcastPaymentPayload;
-
-          // Verify the scheme
           if (paymentPayload.scheme !== "exact") {
             return {
               isValid: false,
@@ -73,7 +81,10 @@ async function verify(
           }
 
           // Delegate to the Solana-specific verification handler
-          return await exact.handlers.solana.verify(paymentPayload, paymentDetails);
+          return await exact.handlers.solana.verify(
+            paymentPayload,
+            paymentRequirements
+          );
         } catch (error) {
           return {
             isValid: false,
@@ -84,6 +95,7 @@ async function verify(
         }
       }
       default:
+        console.log("[DEBUG-PAYMENT-FLOW] Unsupported namespace");
         return {
           isValid: false,
           errorMessage: "Unsupported namespace",

@@ -1,4 +1,4 @@
-import { Hex, PaymentDetails, exact } from "../../../types/index.js";
+import { Hex, PaymentRequirements, exact } from "../../../types/index.js";
 import { WalletClient, PublicActions } from "viem";
 import { evm } from "../../../shared/index.js";
 import { encodeFunctionData } from "viem";
@@ -27,7 +27,7 @@ async function signNativeTransfer(
     networkId,
     resource,
     tokenAddress,
-  }: Pick<PaymentDetails, "networkId" | "resource" | "tokenAddress">
+  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
 ): Promise<
   | { type: "signature"; signature: Hex; nonce: number }
   | { type: "fallback"; signature: Hex; txHash: Hex }
@@ -70,7 +70,7 @@ async function signTokenTransfer(
     tokenAddress,
     networkId,
     resource,
-  }: Pick<PaymentDetails, "tokenAddress" | "networkId" | "resource">
+  }: Pick<PaymentRequirements, "tokenAddress" | "networkId" | "resource">
 ): Promise<
   | { type: "signature"; signature: Hex; nonce: number; data: Hex }
   | { type: "fallback"; signature: Hex; txHash: Hex }
@@ -84,7 +84,7 @@ async function signTokenTransfer(
 
     const request = await client.prepareTransactionRequest({
       account: from,
-      to: tokenAddress.toLowerCase() as Hex,
+      to: tokenAddress?.toLowerCase() as Hex,
       data,
       chain: evm.getChain(networkId),
     });
@@ -121,7 +121,7 @@ async function signAuthorization(
     estimatedProcessingTime,
     resource,
   }: Pick<
-    PaymentDetails,
+    PaymentRequirements,
     "tokenAddress" | "networkId" | "estimatedProcessingTime" | "resource"
   >
 ): Promise<
@@ -144,7 +144,7 @@ async function signAuthorization(
       Math.floor(Date.now() / 1000 + estimatedProcessingTime)
     );
     const { domain } = await client.getEip712Domain({
-      address: tokenAddress.toLowerCase() as Hex,
+      address: tokenAddress?.toLowerCase() as Hex,
     });
 
     const data = {
@@ -162,7 +162,7 @@ async function signAuthorization(
         name: domain.name,
         version: domain.version,
         chainId: parseInt(networkId),
-        verifyingContract: tokenAddress.toLowerCase() as Hex,
+        verifyingContract: tokenAddress?.toLowerCase() as Hex,
       },
       primaryType: "TransferWithAuthorization" as const,
       message: {
@@ -212,7 +212,7 @@ async function signAndSendTransaction(
     networkId,
     resource,
     tokenAddress,
-  }: Pick<PaymentDetails, "networkId" | "resource" | "tokenAddress">
+  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
 ): Promise<{ signature: Hex; txHash: Hex }> {
   try {
     const signature = await client.signMessage({
