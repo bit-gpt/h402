@@ -5,6 +5,7 @@ type ChainConfig = {
   chain: Chain;
   rpcEnvVariable: string;
   nativeTokenDecimals: number;
+  nativeTokenSymbol: string;
 };
 
 type ChainRegistry = {
@@ -18,16 +19,19 @@ const chains: ChainRegistry = {
     chain: mainnet,
     rpcEnvVariable: "ETHEREUM_RPC_URL",
     nativeTokenDecimals: 18,
+    nativeTokenSymbol: "ETH",
   },
   "8453": {
     chain: base,
     rpcEnvVariable: "BASE_RPC_URL",
     nativeTokenDecimals: 18,
+    nativeTokenSymbol: "ETH",
   },
   "56": {
     chain: bsc,
     rpcEnvVariable: "BSC_RPC_URL",
     nativeTokenDecimals: 18,
+    nativeTokenSymbol: "BNB",
   },
 } as const;
 

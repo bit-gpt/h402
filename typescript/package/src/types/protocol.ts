@@ -5,9 +5,9 @@ type AmountFormat = "humanReadable" | "smallestUnit";
 type PaymentRequirements = {
   namespace: BlockchainType;
   tokenAddress: string; // Token address or special value for native tokens
-  tokenType: string;
-  tokenDecimals: number;
-  tokenSymbol: string;
+  tokenType?: string;
+  tokenDecimals?: number;
+  tokenSymbol?: string;
   amountRequired: bigint | number;
   amountRequiredFormat: AmountFormat;
   payToAddress: string;

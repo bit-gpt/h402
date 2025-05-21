@@ -1,17 +1,6 @@
 import { PaymentRequirements } from "../types/index.js";
 import { evm, solana } from "./index.js";
 import { PublicActions } from "viem";
-import { Hex } from "../types/index.js";
-
-const ERC20_ABI = [
-  {
-    inputs: [],
-    name: "decimals",
-    outputs: [{ type: "uint8", name: "" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
 
 export async function parsePaymentRequirementsForAmount(
   paymentRequirements: PaymentRequirements,
@@ -56,33 +45,104 @@ export async function parsePaymentRequirementsForAmount(
       ) {
         return {
           ...details,
+          tokenType: details.tokenType || "NATIVE",
+          tokenSymbol: details.tokenSymbol || "SOL",
+          tokenDecimals: details.tokenDecimals || solana.NATIVE_SOL_DECIMALS,
           amountRequired: BigInt(
             Math.floor(
-              Number(details.amountRequired) * 10 ** solana.NATIVE_SOL_DECIMALS
+              Number(details.amountRequired) *
+                Math.pow(10, solana.NATIVE_SOL_DECIMALS)
             )
           ),
         };
       }
 
-      // For SPL tokens
-      console.log("SPL token address:", details.tokenAddress);
-      console.log("SPL token network ID:", details.networkId);
-      const decimals = await solana.getTokenDecimals(
-        details.tokenAddress,
-        details.networkId
-      );
+      // For SPL tokens - prepare fetch promises only for missing data
+      const fetchPromises = [];
+      let needDecimals = details.tokenDecimals === undefined;
+      let needSymbol = !details.tokenSymbol;
 
-      console.log("SPL token decimals:", decimals);
+      // Only fetch token data if something is missing
+      if (needDecimals || needSymbol) {
+        console.log("Fetching SPL token data for:", details.tokenAddress);
+        console.log("SPL token network ID:", details.networkId);
 
-      return {
-        ...details,
-        amountRequired: BigInt(
-          Math.floor(Number(details.amountRequired) * 10 ** decimals)
-        ),
-      };
+        // Create an array to hold our fetch promises
+        if (needDecimals) {
+          fetchPromises.push(
+            solana.getTokenDecimals(details.tokenAddress, details.networkId)
+          );
+        }
+
+        if (needSymbol) {
+          // Only try to fetch symbol if the function exists
+          if ("getTokenSymbol" in solana) {
+            fetchPromises.push(
+              (
+                solana as {
+                  getTokenSymbol: typeof import("./solana/tokenMetadata.js").getTokenSymbol;
+                }
+              ).getTokenSymbol(details.tokenAddress, details.networkId)
+            );
+          } else {
+            fetchPromises.push(Promise.resolve(undefined));
+          }
+        }
+
+        // Execute all needed fetches in parallel
+        const results = await Promise.all(fetchPromises);
+
+        // Extract results
+        let resultIndex = 0;
+        const decimals = needDecimals
+          ? (results[resultIndex++] as number)
+          : details.tokenDecimals;
+        const symbol = needSymbol
+          ? (results[resultIndex++] as string | undefined)
+          : details.tokenSymbol;
+
+        console.log("SPL token decimals:", decimals);
+        if (symbol) console.log("SPL token symbol:", symbol);
+
+        if (decimals === undefined) {
+          throw new Error(
+            `Failed to obtain token decimals for ${details.tokenAddress}`
+          );
+        }
+
+        return {
+          ...details,
+          tokenType: details.tokenType || "SPL",
+          tokenSymbol: symbol,
+          tokenDecimals: decimals,
+          amountRequired: BigInt(
+            Math.floor(Number(details.amountRequired) * Math.pow(10, decimals))
+          ),
+        };
+      } else {
+        // If we already have all the data we need
+        if (details.tokenDecimals === undefined) {
+          throw new Error(
+            `Token decimals required for ${details.tokenAddress}`
+          );
+        }
+
+        return {
+          ...details,
+          tokenType: details.tokenType || "SPL",
+          amountRequired: BigInt(
+            Math.floor(
+              Number(details.amountRequired) *
+                Math.pow(10, details.tokenDecimals)
+            )
+          ),
+        };
+      }
     } catch (error) {
       throw new Error(
-        `Failed to parse Solana token decimals: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to parse Solana token data: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -93,35 +153,27 @@ export async function parsePaymentRequirementsForAmount(
     details.amountRequiredFormat === "humanReadable" &&
     details.tokenAddress?.toLowerCase() === evm.ZERO_ADDRESS.toLowerCase()
   ) {
-    const decimals = evm.chains[details.networkId].nativeTokenDecimals;
+    const chain = evm.chains[details.networkId];
+    const decimals = chain.nativeTokenDecimals;
 
     return {
       ...details,
+      tokenType: details.tokenType || "NATIVE",
+      tokenSymbol: details.tokenSymbol || chain.nativeTokenSymbol,
+      tokenDecimals: details.tokenDecimals || decimals,
       amountRequired: BigInt(
         Math.floor(Number(details.amountRequired) * 10 ** decimals)
       ),
     };
   }
 
-  // Common ERC20 token decimals - used as fallback when client is not available
-  const COMMON_ERC20_DECIMALS: Record<string, number> = {
-    // Binance Smart Chain (56)
-    "0x55d398326f99059ff775485246999027b3197955": 18, // USDT on BSC
-    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": 18, // USDC on BSC
-    "0xe9e7cea3dedca5984780bafc599bd69add087d56": 18, // BUSD on BSC
-    "0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3": 18, // DAI on BSC
-    // Ethereum Mainnet (1)
-    "0xdac17f958d2ee523a2206206994597c13d831ec7": 6, // USDT on Ethereum
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 6, // USDC on Ethereum
-    "0x6b175474e89094c44da98b954eedeac495271d0f": 18, // DAI on Ethereum
-  };
-
+  // For EVM tokens that need data fetching
   try {
-    // First check if tokenDecimals is provided in the payment requirements
-    if (details.tokenDecimals !== undefined) {
-      console.log(`Using provided token decimals: ${details.tokenDecimals}`);
+    // Check if we already have all the data we need
+    if (details.tokenDecimals !== undefined && details.tokenSymbol) {
       return {
         ...details,
+        tokenType: details.tokenType || "ERC20",
         amountRequired: BigInt(
           Math.floor(
             Number(details.amountRequired) * 10 ** details.tokenDecimals
@@ -130,53 +182,60 @@ export async function parsePaymentRequirementsForAmount(
       };
     }
 
-    // Then check if we know this token's decimals
-    const tokenAddressLower = details.tokenAddress?.toLowerCase();
-    if (tokenAddressLower && COMMON_ERC20_DECIMALS[tokenAddressLower]) {
-      const decimals = COMMON_ERC20_DECIMALS[tokenAddressLower];
-      console.log(
-        `Using known decimals (${decimals}) for token: ${details.tokenAddress}`
-      );
-      return {
-        ...details,
-        amountRequired: BigInt(
-          Math.floor(Number(details.amountRequired) * 10 ** decimals)
-        ),
-      };
-    }
-
-    // Finally, try to use the client if available
+    // If client is not available but we're missing data, we can't proceed
     if (!client || !("readContract" in client)) {
       throw new Error(
-        `EVM client required for ERC20 token decimals and no known decimals for ${details.tokenAddress}. ` +
-          `Either provide a client, use a known token, or include tokenDecimals in the payment requirements.`
+        `EVM client required for ERC20 token data and missing ${
+          !details.tokenDecimals ? "decimals" : ""
+        }${!details.tokenDecimals && !details.tokenSymbol ? " and " : ""}${
+          !details.tokenSymbol ? "symbol" : ""
+        } for ${details.tokenAddress}. ` +
+          `Either provide a client, use a known token, or include complete token data in the payment requirements.`
       );
     }
 
-    const decimals = (await client.readContract({
-      address: details.tokenAddress as Hex,
-      abi: ERC20_ABI,
-      functionName: "decimals",
-    })) as number;
+    // Fetch token metadata using shared functions
+    const [decimals, symbol] = await Promise.all([
+      details.tokenDecimals ??
+        evm.getTokenDecimals(details.tokenAddress, details.networkId, client),
+      details.tokenSymbol ??
+        evm.getTokenSymbol(details.tokenAddress, details.networkId, client),
+    ]);
+
+    // If we still don't have decimals, something went wrong
+    if (decimals === undefined) {
+      throw new Error(
+        `Failed to obtain token decimals for ${details.tokenAddress}`
+      );
+    }
 
     return {
       ...details,
+      tokenType: details.tokenType || "ERC20",
+      tokenSymbol: symbol,
+      tokenDecimals: decimals,
       amountRequired: BigInt(
-        Math.floor(Number(details.amountRequired) * 10 ** decimals)
+        Math.floor(Number(details.amountRequired) * Math.pow(10, decimals))
       ),
     };
   } catch (error) {
-    // If we get here, we couldn't determine the token decimals
+    // If we get here, we couldn't determine the token data
     // Default to 18 decimals (most common) with a warning
     console.warn(
-      `Warning: Could not determine decimals for token ${details.tokenAddress}. ` +
-        `Using default of 18 decimals. Error: ${error instanceof Error ? error.message : String(error)}`
+      `Warning: Could not determine complete token data for ${details.tokenAddress}. ` +
+        `Using default of 18 decimals. Error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
     );
 
     return {
       ...details,
+      tokenType: details.tokenType || "ERC20",
+      tokenDecimals: details.tokenDecimals || 18,
       amountRequired: BigInt(
-        Math.floor(Number(details.amountRequired) * 10 ** 18)
+        Math.floor(
+          Number(details.amountRequired) * 10 ** (details.tokenDecimals || 18)
+        )
       ),
     };
   }

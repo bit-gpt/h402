@@ -8,6 +8,7 @@ import {
 } from "../../types/index.js";
 import { useFacilitator } from "../utils";
 import { safeBase64Decode } from "../../shared/base64.js";
+import { enrichPaymentRequirements } from "../../shared/enrichPaymentRequirements";
 
 /**
  * Enhanced h402NextMiddleware that supports multiple payment options via X-PAYMENT header
@@ -36,7 +37,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
   /**
    * Handle browser requests that require payment
    */
-  const handleBrowserPaymentRequired = (
+  const handleBrowserPaymentRequired = async (
     request: NextRequest,
     paymentRequirements: PaymentRequirements[]
   ) => {
@@ -47,10 +48,13 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       // Set the return URL
       redirectUrl.searchParams.set("returnUrl", request.url);
 
+      // Enrich payment requirements with metadata
+      const enrichedRequirements = await enrichPaymentRequirements(paymentRequirements);
+
       // Set the payment requirements
       redirectUrl.searchParams.set(
         "requirements",
-        JSON.stringify(toJsonSafe(paymentRequirements))
+        JSON.stringify(toJsonSafe(enrichedRequirements))
       );
 
       // Extract and pass along the prompt parameter if it exists in the original request
@@ -64,9 +68,10 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     }
 
     // Inline HTML paywall if no paywall route is configured
+    const enrichedRequirements = await enrichPaymentRequirements(paymentRequirements);
     return new NextResponse(
       getPaywallHtml({
-        paymentRequirements,
+        paymentRequirements: enrichedRequirements,
         currentUrl: request.url,
       }),
       {
