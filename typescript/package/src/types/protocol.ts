@@ -13,8 +13,8 @@ type PaymentRequirements = {
   payToAddress: string;
   networkId: string; // Chain ID for EVM, cluster name for Solana
   description?: string;
-  resource: string;
-  scheme: string;
+  resource?: string;
+  scheme?: string;
   mimeType?: string;
   outputSchema?: any;
   estimatedProcessingTime?: number;

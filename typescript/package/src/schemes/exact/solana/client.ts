@@ -90,8 +90,6 @@ async function sendAndCreatePayload(
   message: CompilableTransactionMessage &
     TransactionMessageWithBlockhashLifetime,
   client: SolanaClient,
-  resource: string,
-  networkId = "mainnet",
   requirements: PaymentRequirements
 ): Promise<PaymentPayload<exact.solana.Payload>> {
   const transaction = compileTransaction(message);
@@ -137,8 +135,8 @@ async function sendAndCreatePayload(
     version: 1,
     scheme: "exact",
     namespace: "solana",
-    networkId,
-    resource,
+    networkId: "mainnet",
+    resource: requirements.resource ?? `402 signature ${Date.now()}`,
   };
 
   const payloadType =
@@ -206,8 +204,6 @@ async function createPayment(
   const payload = await sendAndCreatePayload(
     txMessage,
     client,
-    requirements.resource,
-    requirements.networkId,
     requirements
   );
 

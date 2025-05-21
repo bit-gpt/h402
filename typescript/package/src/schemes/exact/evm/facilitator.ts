@@ -581,7 +581,7 @@ async function verifySignAndSendTransactionPayload(
 
     const messageVerified = await client.verifyMessage({
       address: txData.from,
-      message: paymentRequirements.resource,
+      message: paymentRequirements.resource ?? `402 signature ${Date.now()}`,
       signature: payload.signedMessage,
     });
 

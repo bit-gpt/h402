@@ -38,10 +38,10 @@ async function _createPayment(
 
   const basePayment = {
     version: config["h402Version"],
-    scheme: paymentRequirements.scheme,
+    scheme: paymentRequirements.scheme!,
     namespace: paymentRequirements.namespace!,
     networkId: paymentRequirements.networkId,
-    resource: paymentRequirements.resource,
+    resource: paymentRequirements.resource!,
   };
 
   if (paymentRequirements.tokenAddress === evm.ZERO_ADDRESS) {
@@ -154,7 +154,15 @@ async function createPayment(
   client: WalletClient & PublicActions,
   paymentRequirements: PaymentRequirements
 ): Promise<string> {
-  const payment = await _createPayment(client, paymentRequirements);
+  // Set defaults
+  let paymentRequirementsWithDefaults = paymentRequirements;
+  if (!paymentRequirements.resource) {
+    paymentRequirementsWithDefaults.resource = `402 signature ${Date.now()}`;
+  }
+  if (!paymentRequirements.scheme) {
+    paymentRequirementsWithDefaults.scheme = `exact`;
+  }
+  const payment = await _createPayment(client, paymentRequirementsWithDefaults);
   return utils.encodePaymentPayload(payment);
 }
 

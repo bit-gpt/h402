@@ -215,9 +215,10 @@ async function signAndSendTransaction(
   }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
 ): Promise<{ signature: Hex; txHash: Hex }> {
   try {
+
     const signature = await client.signMessage({
       account: from,
-      message: resource,
+      message: resource ?? `402 signature ${Date.now()}`,
     });
 
     if (tokenAddress === evm.ZERO_ADDRESS) {
