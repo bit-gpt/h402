@@ -194,32 +194,6 @@ function SolanaPaymentProcessor({
 
   // Process payment on mount
   useEffect(() => {
-    console.log("[DEBUG-PAYMENT-FLOW] SolanaPaymentProcessor mounted", {
-      accountAddress: account?.address?.slice(0, 8),
-      hasAttempted: hasAttemptedRef.current,
-      attemptInProgress: paymentAttemptRef.current?.attemptInProgress,
-    });
-
-    // Log payment details for debugging
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Solana payment details received:",
-      JSON.stringify(paymentRequirements, null, 2)
-    );
-
-    // Set the appropriate namespace and networkId for Solana
-    const finalPaymentRequirements = {
-      ...paymentRequirements,
-      namespace: "solana",
-      networkId: "mainnet",
-      scheme: "exact",
-      resource: paymentRequirements.resource || "solana-image-generation",
-    };
-
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Final Solana payment details:",
-      JSON.stringify(finalPaymentRequirements, null, 2)
-    );
-
     // Guard against multiple attempts
     if (
       hasAttemptedRef.current ||
@@ -237,6 +211,9 @@ function SolanaPaymentProcessor({
     const processPayment = async () => {
       try {
         if (!transactionSendingSigner) {
+          console.error(
+            "[SolanaPaymentHandler] Transaction signer not available"
+          );
           throw new Error("Solana transaction signer not available");
         }
 
@@ -260,7 +237,7 @@ function SolanaPaymentProcessor({
           // Create payment using the h402 payment library
           // At this point the user will be prompted to approve the transaction
           paymentHeader = await createPayment(
-            finalPaymentRequirements,
+            paymentRequirements,
             paymentClients
           );
 
@@ -283,7 +260,6 @@ function SolanaPaymentProcessor({
               paymentHeader,
               "base64"
             ).toString();
-            console.log("[DEBUG] Decoded payment header:", decodedHeader);
             const payloadObj = JSON.parse(decodedHeader);
             console.log("[DEBUG] Parsed payload:", payloadObj);
             // Extract signature from the payload if available

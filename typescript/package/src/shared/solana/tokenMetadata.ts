@@ -1,12 +1,22 @@
-import { createSolanaRpc, address } from "@solana/kit";
+import {
+  createSolanaRpc,
+  address,
+  getProgramDerivedAddress,
+} from "@solana/kit";
 import type { AccountInfoWithJsonData } from "@solana/kit";
 import { getClusterUrl } from "./clusterEndpoints.js";
 import { NATIVE_SOL_DECIMALS } from "./index.js";
-import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
+import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 
-// TODO: Install @solana-program/token-metadata package
+// Metadata program ID and address
 const TOKEN_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const TOKEN_METADATA_PROGRAM_ADDRESS = address(TOKEN_METADATA_PROGRAM_ID);
+
+// Well-known token addresses and their symbols
+const WELL_KNOWN_TOKENS: Record<string, string> = {
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC", // USDC (Circle)
+};
 
 /**
  * Get the number of decimals for a token
@@ -55,16 +65,17 @@ export async function getTokenDecimals(
  * For SPL tokens, attempts to fetch from token metadata program
  */
 async function findMetadataAddress(mint: string): Promise<string> {
-  // For Token 2022, metadata is stored in the mint account
-  // For regular SPL tokens, metadata is stored in a PDA account
-  const seeds = [
-    Buffer.from("metadata"),
-    Buffer.from(TOKEN_METADATA_PROGRAM_ID, "hex"),
-    Buffer.from(mint, "hex"),
-  ];
+  // Derive the metadata account address using Metaplex's Token Metadata Program
+  const [metadataAddress] = await getProgramDerivedAddress({
+    programAddress: TOKEN_METADATA_PROGRAM_ADDRESS,
+    seeds: [
+      Buffer.from("metadata"),
+      Buffer.from(TOKEN_METADATA_PROGRAM_ID, "hex"),
+      Buffer.from(mint, "hex"),
+    ],
+  });
 
-  // This is a simplified PDA derivation - in production you'd want to use proper PDA derivation
-  return seeds.join("");
+  return metadataAddress.toString();
 }
 
 export async function getTokenSymbol(
@@ -98,6 +109,9 @@ export async function getTokenSymbol(
     // Check if this is a Token 2022 or regular SPL token
     const isToken2022 = mintInfo.owner === TOKEN_2022_PROGRAM_ADDRESS;
     const isRegularToken = mintInfo.owner === TOKEN_PROGRAM_ADDRESS;
+    console.log(
+      `[getTokenSymbol] Token type - Token2022: ${isToken2022}, Regular SPL: ${isRegularToken}`
+    );
 
     if (!isToken2022 && !isRegularToken) {
       throw new Error(
@@ -106,17 +120,28 @@ export async function getTokenSymbol(
     }
 
     if (isToken2022) {
+      console.log("[getTokenSymbol] Processing Token 2022 metadata");
       // For Token 2022, metadata is stored in the mint account's extension data
       const parsedData = mintInfo.data as AccountInfoWithJsonData["data"];
       if (!("parsed" in parsedData) || !parsedData.parsed.info) {
+        console.log(
+          "[getTokenSymbol] No parsed data found in Token 2022 mint account"
+        );
         return undefined;
       }
 
       // Extract symbol from Token 2022 metadata extension
-      return (parsedData.parsed.info as any).symbol || undefined;
+      const symbol = (parsedData.parsed.info as any).symbol;
+      console.log(`[getTokenSymbol] Token 2022 symbol found: ${symbol}`);
+      return symbol || undefined;
     } else {
+      console.log("[getTokenSymbol] Processing regular SPL token metadata");
       // For regular SPL tokens, try the metadata program
       const metadataAddress = await findMetadataAddress(tokenAddress);
+      console.log(
+        `[getTokenSymbol] Derived metadata address: ${metadataAddress}`
+      );
+
       const { value: metadataInfo } = await rpc
         .getAccountInfo(address(metadataAddress), {
           encoding: "jsonParsed",
@@ -124,8 +149,12 @@ export async function getTokenSymbol(
         .send();
 
       if (!metadataInfo || !metadataInfo.data) {
+        console.log(
+          "[getTokenSymbol] No metadata account found at derived address"
+        );
         return undefined; // No metadata account found
       }
+      console.log("[getTokenSymbol] Metadata account found:", metadataInfo);
 
       const metadataData = metadataInfo.data as AccountInfoWithJsonData["data"];
       if (!("parsed" in metadataData) || !metadataData.parsed.info) {
@@ -140,6 +169,14 @@ export async function getTokenSymbol(
         error instanceof Error ? error.message : String(error)
       }`
     );
+
+    // If on-chain metadata retrieval fails, fallback to hard-coded values
+    if (WELL_KNOWN_TOKENS[tokenAddress]) {
+      console.log(
+        `[getTokenSymbol] Using hardcoded symbol for ${tokenAddress}: ${WELL_KNOWN_TOKENS[tokenAddress]}`
+      );
+      return WELL_KNOWN_TOKENS[tokenAddress];
+    }
     return undefined;
   }
 }
