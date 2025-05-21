@@ -17,7 +17,7 @@ type PaymentRequirements = {
   scheme: string;
   mimeType?: string;
   outputSchema?: any;
-  estimatedProcessingTime: number;
+  estimatedProcessingTime?: number;
   extra?: any;
   maxAmountRequired?: bigint | number;
   requiredDeadlineSeconds?: number;

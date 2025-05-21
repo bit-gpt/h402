@@ -13,11 +13,22 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 export const middleware = h402NextMiddleware({
    routes: {
       "/api/paywalled_route": {
-         paymentRequirements
+         paymentRequirements: {
+            namespace: "evm",
+            tokenAddress: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
+            tokenType: "ERC20",
+            tokenDecimals: 18,
+            tokenSymbol: "USDT",
+            amountRequired: 0.01, // 0.01 USDT
+            amountRequiredFormat: "humanReadable",
+            payToAddress: "0xd78d20FB910794df939eB2A758B367d7224733bc",
+            networkId: "56", // BSC Chain ID
+            resource: "image-generation",
+            scheme: "exact",
+         }
       }
    },
-   paywallRoute: "/paywall",
-   facilitatorUrl: process.env.FACILITATOR_URL || "http://localhost:3001",
+   paywallRoute: "/paywall"
 });
 
 export const config = {

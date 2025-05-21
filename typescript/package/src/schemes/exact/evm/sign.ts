@@ -141,7 +141,7 @@ async function signAuthorization(
       Math.floor(Date.now() / 1000) - 5 // 1 block (2s) before to account for block timestamping
     );
     const validBefore = BigInt(
-      Math.floor(Date.now() / 1000 + estimatedProcessingTime)
+      Math.floor(Date.now() / 1000 + (estimatedProcessingTime ?? 30))
     );
     const { domain } = await client.getEip712Domain({
       address: tokenAddress?.toLowerCase() as Hex,
