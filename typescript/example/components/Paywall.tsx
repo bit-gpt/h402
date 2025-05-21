@@ -22,7 +22,7 @@ import { useCompatibleWallet } from "@/hooks/useCompatibleWallet";
 import SolanaPaymentHandler from "@/solana/components/SolanaPaymentHandler";
 import EvmPaymentHandler from "@/evm/components/EvmPaymentHandler";
 import { formatAmountForDisplay } from "@/utils/amountFormatting";
-import { PaymentRequirements } from "@bit-gpt/h402/types";
+import { EnrichedPaymentRequirements } from "@bit-gpt/h402/types";
 
 /**
  * Payment UI component with network/coin selection
@@ -40,7 +40,7 @@ export default function PaymentUI({
   const { isTrueEvmProvider } = useWalletDetection(evmAddress);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
   const [activePaymentRequirements, setActivePaymentRequirements] =
-    useState<PaymentRequirements | null>(null);
+    useState<EnrichedPaymentRequirements | null>(null);
 
   // Convert payment details to array if needed
   const paymentMethods = useMemo(

@@ -1,4 +1,4 @@
-import { PaymentRequirements } from "@bit-gpt/h402/types";
+import { EnrichedPaymentRequirements } from "@bit-gpt/h402/types";
 
 declare global {
   interface Window {
@@ -19,7 +19,7 @@ export interface Coin {
   id: string;
   name: string;
   icon: string;
-  paymentRequirements?: PaymentRequirements;
+  paymentRequirements?: EnrichedPaymentRequirements;
 }
 
 export interface Network {
@@ -32,7 +32,9 @@ export interface Network {
 export interface PaymentUIProps {
   prompt: string;
   returnUrl?: string;
-  paymentRequirements?: PaymentRequirements[] | PaymentRequirements;
+  paymentRequirements?:
+    | EnrichedPaymentRequirements[]
+    | EnrichedPaymentRequirements;
 }
 
 export type PaymentStatus =

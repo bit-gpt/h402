@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Paywall from "@/components/Paywall";
 import LoadingState from "./LoadingState";
 import { parsePaymentRequirements } from "@/utils/paymentRequirementParser";
-import {PaymentRequirements} from "@bit-gpt/h402/types";
+import { EnrichedPaymentRequirements } from "@bit-gpt/h402/types";
 
 export default function PaywallContent() {
   const searchParams = useSearchParams();
@@ -14,7 +14,7 @@ export default function PaywallContent() {
   const promptParam = searchParams.get("prompt");
 
   const [paymentRequirements, setPaymentRequirements] = useState<
-    PaymentRequirements | PaymentRequirements[] | undefined
+    EnrichedPaymentRequirements | EnrichedPaymentRequirements[] | undefined
   >(undefined);
 
   // Parse payment details from URL parameter if available

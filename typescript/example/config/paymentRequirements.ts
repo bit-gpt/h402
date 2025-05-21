@@ -3,7 +3,6 @@ import { PaymentRequirements } from "@bit-gpt/h402/types";
 export const evmPaymentRequirementsUSDTonBSC: PaymentRequirements = {
   namespace: "evm",
   tokenAddress: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
-  tokenType: "ERC20",
   amountRequired: 0.01, // 0.01 USDT
   amountRequiredFormat: "humanReadable", // Human readable format
   payToAddress: "0xc60d20FB910794df939eA1B758B367d7114733ae",
@@ -23,7 +22,6 @@ export const evmPaymentRequirementsUSDTonBSC: PaymentRequirements = {
 export const evmNativePaymentRequirements: PaymentRequirements = {
   namespace: "evm",
   tokenAddress: "0x0000000000000000000000000000000000000000", // Special address for native token
-  tokenType: "NATIVE",
   amountRequired: 0.0001, // 0.0001 BNB
   amountRequiredFormat: "humanReadable", // Human readable format
   payToAddress: "0xc60d20FB910794df939eA1B758B367d7114733ae",
@@ -43,7 +41,6 @@ export const evmNativePaymentRequirements: PaymentRequirements = {
 export const solanaNativePaymentRequirements: PaymentRequirements = {
   namespace: "solana",
   tokenAddress: "11111111111111111111111111111111", // System Program ID for native SOL
-  tokenType: "NATIVE",
   amountRequired: 100000, // 0.0001 SOL in lamports
   amountRequiredFormat: "smallestUnit", // Amount is in lamports
   payToAddress: "4pX5LbCK85Sf6iLXMwUodo2f5rvQKAofyhANT6TUwG3f",
@@ -63,7 +60,6 @@ export const solanaNativePaymentRequirements: PaymentRequirements = {
 export const solanaSplPaymentRequirementsUSDC: PaymentRequirements = {
   namespace: "solana",
   tokenAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC on Solana
-  tokenType: "SPL",
   amountRequired: 10000, // 0.01 USDC in smallest units (6 decimals)
   amountRequiredFormat: "smallestUnit", // Amount is in smallest units
   payToAddress: "4pX5LbCK85Sf6iLXMwUodo2f5rvQKAofyhANT6TUwG3f",

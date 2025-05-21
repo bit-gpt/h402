@@ -36,33 +36,34 @@ The h402 middleware allows you to protect routes in your Next.js application and
 The middleware is configured in `middleware.ts`:
 
 ```typescript
-import {h402NextMiddleware} from "@bit-gpt/h402";
-import {imageGenerationPaymentRequirements} from "./config/paymentRequirements";
+import { h402NextMiddleware } from "@bit-gpt/h402";
+import { imageGenerationPaymentRequirements } from "./config/paymentRequirements";
 
 export const middleware = h402NextMiddleware({
   routes: {
     "/api/generate-image": {
-      paymentRequirements: imageGenerationPaymentRequirements
-    }
+      paymentRequirements: imageGenerationPaymentRequirements,
+    },
   },
   paywallRoute: "/paywall",
   facilitatorUrl: process.env.FACILITATOR_URL || "http://localhost:3001",
   solanaRpcUrls: process.env.SOLANA_MAINNET_RPC_URL
     ? {
-      mainnet: {
-        url: process.env.SOLANA_MAINNET_RPC_URL,
-        wsUrl: process.env.SOLANA_MAINNET_WS_URL,
-      },
-    }
-    : undefined
+        mainnet: {
+          url: process.env.SOLANA_MAINNET_RPC_URL,
+          wsUrl: process.env.SOLANA_MAINNET_WS_URL,
+        },
+      }
+    : undefined,
 });
 
 export const config = {
-  matcher: ["/api/generate-image"]
+  matcher: ["/api/generate-image"],
 };
 ```
 
 This configuration:
+
 - Protects the `/api/generate-image` route
 - Specifies payment requirements for the route
 - Sets the paywall route to `/paywall`
@@ -79,7 +80,6 @@ import { PaymentRequirements } from "@bit-gpt/h402/types";
 export const evmPaymentRequirementsUSDTonBSC: PaymentRequirements = {
   namespace: "evm",
   tokenAddress: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
-  tokenType: "ERC20",
   tokenDecimals: 18,
   tokenSymbol: "USDT",
   amountRequired: 0.01, // 0.01 USDT
@@ -103,6 +103,7 @@ export const imageGenerationPaymentRequirements: PaymentRequirements[] = [
 ```
 
 This defines the payment requirements for the protected route, including:
+
 - The blockchain network (EVM/Solana)
 - The token to be used for payment
 - The amount required
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
   // The middleware has already verified the payment
   // You can access payment information from the X-PAYMENT-RESPONSE header
   const paymentResponse = request.headers.get("X-PAYMENT-RESPONSE");
-  
+
   // Parse the payment response
   let paymentInfo = null;
   if (paymentResponse) {
@@ -136,27 +137,31 @@ export async function POST(request: NextRequest) {
   try {
     // Your business logic here
     // For example, generate an image using AI
-    
+
     // Simulate image generation
     const generatedImageFilename = `image-${Date.now()}.png`;
-    
+
     // Return the response
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       filename: generatedImageFilename,
-      message: "Image generated successfully"
+      message: "Image generated successfully",
     });
   } catch (error) {
     console.error("Error processing request:", error);
-    return NextResponse.json({ 
-      success: false, 
-      error: "Failed to generate image" 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to generate image",
+      },
+      { status: 500 }
+    );
   }
 }
 ```
 
 This API route:
+
 - Receives requests that have been verified by the middleware
 - Extracts payment information from the X-PAYMENT-RESPONSE header
 - Processes the request and returns a response
@@ -216,6 +221,7 @@ export default function PaywallPage() {
 ```
 
 This page:
+
 - Extracts payment requirements and return URL from query parameters
 - Renders the PaymentUI component with the payment requirements
 
@@ -247,7 +253,6 @@ Each payment requirement object includes:
 
 - `namespace`: The blockchain network (e.g., "evm" or "solana")
 - `tokenAddress`: The address of the token to use for payment
-- `tokenType`: The type of token (e.g., "ERC20", "NATIVE", "SPL")
 - `tokenDecimals`: The number of decimal places for the token
 - `tokenSymbol`: The symbol of the token (e.g., "USDT", "SOL")
 - `amountRequired`: The amount required for payment

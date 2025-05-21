@@ -1,13 +1,15 @@
-// paymentUtils.ts
 import { Network } from "@/types/payment";
-import { PaymentRequirements } from "@bit-gpt/h402/types";
+import { EnrichedPaymentRequirements } from "@bit-gpt/h402/types";
 
 /**
  * Converts payment details to array if needed
  */
 export function normalizePaymentMethods(
-  paymentRequirements: PaymentRequirements[] | PaymentRequirements | undefined
-): PaymentRequirements[] {
+  paymentRequirements:
+    | EnrichedPaymentRequirements[]
+    | EnrichedPaymentRequirements
+    | undefined
+): EnrichedPaymentRequirements[] {
   if (!paymentRequirements) return [];
 
   return Array.isArray(paymentRequirements)
@@ -19,9 +21,9 @@ export function normalizePaymentMethods(
  * Get compatible payment methods for the selected network
  */
 export function getCompatiblePaymentRequirements(
-  paymentRequirements: PaymentRequirements[],
+  paymentRequirements: EnrichedPaymentRequirements[],
   networkId: string
-): PaymentRequirements[] {
+): EnrichedPaymentRequirements[] {
   if (!paymentRequirements.length) {
     return [];
   }
@@ -42,10 +44,10 @@ export function getCompatiblePaymentRequirements(
  * Generate network and coin options from payment requirements
  */
 export function generateAvailableNetworks(
-  paymentRequirements: PaymentRequirements[]
+  paymentRequirements: EnrichedPaymentRequirements[]
 ): Network[] {
   // Group payment methods by network
-  const networkGroups: Record<string, PaymentRequirements[]> = {};
+  const networkGroups: Record<string, EnrichedPaymentRequirements[]> = {};
 
   paymentRequirements.forEach((requirement) => {
     const networkId = requirement.namespace || "";
@@ -62,7 +64,9 @@ export function generateAvailableNetworks(
   if (networkGroups["evm"] && networkGroups["evm"].length > 0) {
     const evmCoins = networkGroups["evm"].map((requirement) => {
       // Determine coin type from token type and address
-      const isNative = requirement.tokenType === "NATIVE";
+      const isNative =
+        requirement.tokenAddress ===
+        "0x0000000000000000000000000000000000000000";
       const tokenSymbol =
         requirement.tokenSymbol || (isNative ? "BNB" : "TOKEN");
 
@@ -86,7 +90,8 @@ export function generateAvailableNetworks(
   if (networkGroups["solana"] && networkGroups["solana"].length > 0) {
     const solanaCoins = networkGroups["solana"].map((requirement) => {
       // Determine coin type from token type and address
-      const isNative = requirement.tokenType === "NATIVE";
+      const isNative =
+        requirement.tokenAddress === "11111111111111111111111111111111";
       const tokenSymbol =
         requirement.tokenSymbol || (isNative ? "SOL" : "USDC");
 

@@ -39,15 +39,9 @@ export async function parsePaymentRequirementsForAmount(
   if (details.namespace === "solana") {
     try {
       // For native SOL
-      if (
-        !details.tokenAddress ||
-        details.tokenAddress === "11111111111111111111111111111111"
-      ) {
+      if (details.tokenAddress === "11111111111111111111111111111111") {
         return {
           ...details,
-          tokenType: details.tokenType || "NATIVE",
-          tokenSymbol: details.tokenSymbol || "SOL",
-          tokenDecimals: details.tokenDecimals || solana.NATIVE_SOL_DECIMALS,
           amountRequired: BigInt(
             Math.floor(
               Number(details.amountRequired) *
@@ -112,9 +106,6 @@ export async function parsePaymentRequirementsForAmount(
 
         return {
           ...details,
-          tokenType: details.tokenType || "SPL",
-          tokenSymbol: symbol,
-          tokenDecimals: decimals,
           amountRequired: BigInt(
             Math.floor(Number(details.amountRequired) * Math.pow(10, decimals))
           ),
@@ -129,7 +120,6 @@ export async function parsePaymentRequirementsForAmount(
 
         return {
           ...details,
-          tokenType: details.tokenType || "SPL",
           amountRequired: BigInt(
             Math.floor(
               Number(details.amountRequired) *
@@ -158,9 +148,6 @@ export async function parsePaymentRequirementsForAmount(
 
     return {
       ...details,
-      tokenType: details.tokenType || "NATIVE",
-      tokenSymbol: details.tokenSymbol || chain.nativeTokenSymbol,
-      tokenDecimals: details.tokenDecimals || decimals,
       amountRequired: BigInt(
         Math.floor(Number(details.amountRequired) * 10 ** decimals)
       ),
@@ -170,10 +157,9 @@ export async function parsePaymentRequirementsForAmount(
   // For EVM tokens that need data fetching
   try {
     // Check if we already have all the data we need
-    if (details.tokenDecimals !== undefined && details.tokenSymbol) {
+    if (details.tokenDecimals !== undefined) {
       return {
         ...details,
-        tokenType: details.tokenType || "ERC20",
         amountRequired: BigInt(
           Math.floor(
             Number(details.amountRequired) * 10 ** details.tokenDecimals
@@ -195,25 +181,13 @@ export async function parsePaymentRequirementsForAmount(
     }
 
     // Fetch token metadata using shared functions
-    const [decimals, symbol] = await Promise.all([
+    const [decimals] = await Promise.all([
       details.tokenDecimals ??
         evm.getTokenDecimals(details.tokenAddress, details.networkId, client),
-      details.tokenSymbol ??
-        evm.getTokenSymbol(details.tokenAddress, details.networkId, client),
     ]);
-
-    // If we still don't have decimals, something went wrong
-    if (decimals === undefined) {
-      throw new Error(
-        `Failed to obtain token decimals for ${details.tokenAddress}`
-      );
-    }
 
     return {
       ...details,
-      tokenType: details.tokenType || "ERC20",
-      tokenSymbol: symbol,
-      tokenDecimals: decimals,
       amountRequired: BigInt(
         Math.floor(Number(details.amountRequired) * Math.pow(10, decimals))
       ),
@@ -228,14 +202,12 @@ export async function parsePaymentRequirementsForAmount(
         }`
     );
 
+    // Use default decimals for amount conversion
+    const defaultDecimals = 18;
     return {
       ...details,
-      tokenType: details.tokenType || "ERC20",
-      tokenDecimals: details.tokenDecimals || 18,
       amountRequired: BigInt(
-        Math.floor(
-          Number(details.amountRequired) * 10 ** (details.tokenDecimals || 18)
-        )
+        Math.floor(Number(details.amountRequired) * 10 ** defaultDecimals)
       ),
     };
   }

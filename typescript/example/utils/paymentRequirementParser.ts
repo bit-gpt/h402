@@ -1,4 +1,4 @@
-import {PaymentRequirements} from "@bit-gpt/h402/types";
+import { EnrichedPaymentRequirements } from "@bit-gpt/h402/types";
 
 /**
  * Parses payment requirements from a URL parameter string
@@ -6,7 +6,7 @@ import {PaymentRequirements} from "@bit-gpt/h402/types";
  */
 export function parsePaymentRequirements(
   paymentRequirementsParam: string | null
-): PaymentRequirements[] | undefined {
+): EnrichedPaymentRequirements[] | undefined {
   if (!paymentRequirementsParam) return undefined;
 
   try {

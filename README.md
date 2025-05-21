@@ -11,26 +11,27 @@ This unlocks a previously unattainable economic layer for AI-native commerce, wh
 // You can check out the sections below to find more implementation options
 // Or reach out to us at hello@bitgpt.xyz
 export const middleware = h402NextMiddleware({
-   routes: {
-      "/api/paywalled_route": {
-         paymentRequirements: [{
-            namespace: "evm",
-            tokenAddress: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
-            tokenType: "ERC20",
-            tokenDecimals: 18,
-            tokenSymbol: "USDT",
-            amountRequired: 0.01, // 0.01 USDT
-            amountRequiredFormat: "humanReadable",
-            payToAddress: "0xd78d20FB910794df939eB2A758B367d7224733bc",
-            networkId: "56", // BSC Chain ID
-         }]
-      }
-   },
-   paywallRoute: "/paywall"
+  routes: {
+    "/api/paywalled_route": {
+      paymentRequirements: [
+        {
+          namespace: "evm",
+          tokenAddress: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
+          tokenDecimals: 18,
+          tokenSymbol: "USDT",
+          amountRequired: 0.01, // 0.01 USDT
+          amountRequiredFormat: "humanReadable",
+          payToAddress: "0xd78d20FB910794df939eB2A758B367d7224733bc",
+          networkId: "56", // BSC Chain ID
+        },
+      ],
+    },
+  },
+  paywallRoute: "/paywall",
 });
 
 export const config = {
-   matcher: ["/api/paywalled_route"]
+  matcher: ["/api/paywalled_route"],
 };
 ```
 

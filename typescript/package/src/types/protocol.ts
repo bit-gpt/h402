@@ -2,10 +2,13 @@ type BlockchainType = "evm" | "solana";
 
 type AmountFormat = "humanReadable" | "smallestUnit";
 
-type PaymentRequirements = {
+/**
+ * Base payment requirements type used when creating payment requirements.
+ * Token metadata (decimals, symbol) are optional as they will be enriched by the middleware.
+ */
+type BasePaymentRequirements = {
   namespace: BlockchainType;
   tokenAddress: string; // Token address or special value for native tokens
-  tokenType?: string;
   tokenDecimals?: number;
   tokenSymbol?: string;
   amountRequired: bigint | number;
@@ -22,6 +25,21 @@ type PaymentRequirements = {
   maxAmountRequired?: bigint | number;
   requiredDeadlineSeconds?: number;
 };
+
+/**
+ * Enriched payment requirements type returned by the middleware.
+ * Token metadata (decimals, symbol) are guaranteed to be present.
+ */
+type EnrichedPaymentRequirements = Omit<
+  BasePaymentRequirements,
+  "tokenDecimals" | "tokenSymbol"
+> & {
+  tokenDecimals: number; // Required after enrichment
+  tokenSymbol: string; // Required after enrichment
+};
+
+// Default export type is the base type for backward compatibility
+type PaymentRequirements = BasePaymentRequirements;
 
 type RouteConfig = {
   paymentRequirements: PaymentRequirements[];
@@ -65,4 +83,5 @@ export {
   BlockchainType,
   RouteConfig,
   MiddlewareConfig,
+  EnrichedPaymentRequirements,
 };

@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MiddlewareConfig, PaymentRequirements } from "../../types/protocol";
+import { MiddlewareConfig, PaymentRequirements } from "../../types/protocol.js";
 import { getPaywallHtml } from "../../shared/paywall";
 import { toJsonSafe } from "../../shared/index.js";
-import {
-  VerifyResponse,
-  FacilitatorResponse,
-} from "../../types/index.js";
+import { VerifyResponse, FacilitatorResponse } from "../../types/index.js";
 import { useFacilitator } from "../utils";
 import { safeBase64Decode } from "../../shared/base64.js";
 import { enrichPaymentRequirements } from "../../shared/enrichPaymentRequirements";
@@ -15,7 +12,8 @@ import { enrichPaymentRequirements } from "../../shared/enrichPaymentRequirement
  */
 export function h402NextMiddleware(config: MiddlewareConfig) {
   // Create facilitator client using the hook
-  const facilitatorUrl = config.facilitatorUrl || "https://facilitator.bitgpt.xyz";
+  const facilitatorUrl =
+    config.facilitatorUrl || "https://facilitator.bitgpt.xyz";
   const { verify, settle } = useFacilitator(facilitatorUrl);
 
   /**
@@ -49,7 +47,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       redirectUrl.searchParams.set("returnUrl", request.url);
 
       // Enrich payment requirements with metadata
-      const enrichedRequirements = await enrichPaymentRequirements(paymentRequirements);
+      const enrichedRequirements = await enrichPaymentRequirements(
+        paymentRequirements
+      );
 
       // Set the payment requirements
       redirectUrl.searchParams.set(
@@ -68,7 +68,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     }
 
     // Inline HTML paywall if no paywall route is configured
-    const enrichedRequirements = await enrichPaymentRequirements(paymentRequirements);
+    const enrichedRequirements = await enrichPaymentRequirements(
+      paymentRequirements
+    );
     return new NextResponse(
       getPaywallHtml({
         paymentRequirements: enrichedRequirements,
@@ -107,7 +109,10 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     if (!paymentHeader) {
       return isHtmlRequest
         ? handleBrowserPaymentRequired(request, paymentRequirements)
-        : createApiPaymentRequiredResponse("Payment required", paymentRequirements);
+        : createApiPaymentRequiredResponse(
+            "Payment required",
+            paymentRequirements
+          );
     }
 
     // Try to verify the payment
@@ -126,7 +131,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
 
       // Find matching payment requirements
       const matchingRequirements = paymentRequirements.filter(
-        req =>
+        (req) =>
           req.namespace === namespace &&
           req.networkId === networkId &&
           req.scheme === scheme &&
@@ -155,7 +160,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
 
     // If no successful verification yet, return error
     if (!verificationResult || verificationResult.error) {
-      const errorMessage = verificationResult?.error || "Payment verification failed: Invalid payment payload";
+      const errorMessage =
+        verificationResult?.error ||
+        "Payment verification failed: Invalid payment payload";
       return isHtmlRequest
         ? handleBrowserPaymentRequired(request, paymentRequirements)
         : createApiPaymentRequiredResponse(errorMessage, paymentRequirements);
@@ -197,7 +204,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       response.headers.set("X-PAYMENT-RESPONSE", JSON.stringify(responseData));
       return response;
     } catch (error) {
-      const errorMessage = `Payment settlement failed: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `Payment settlement failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
       return isHtmlRequest
         ? handleBrowserPaymentRequired(request, paymentRequirements)
         : createApiPaymentRequiredResponse(errorMessage, paymentRequirements);

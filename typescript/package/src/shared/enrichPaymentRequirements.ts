@@ -1,6 +1,15 @@
-import { PaymentRequirements } from "../types/protocol";
-import { getTokenDecimals as getSolanaTokenDecimals, getTokenSymbol as getSolanaTokenSymbol } from "./solana/tokenMetadata";
-import { getTokenDecimals as getEvmTokenDecimals, getTokenSymbol as getEvmTokenSymbol } from "./evm/tokenMetadata";
+import {
+  PaymentRequirements,
+  EnrichedPaymentRequirements,
+} from "../types/protocol";
+import {
+  getTokenDecimals as getSolanaTokenDecimals,
+  getTokenSymbol as getSolanaTokenSymbol,
+} from "./solana/tokenMetadata";
+import {
+  getTokenDecimals as getEvmTokenDecimals,
+  getTokenSymbol as getEvmTokenSymbol,
+} from "./evm/tokenMetadata";
 
 /**
  * Enrich payment requirements with token metadata (decimals and symbol)
@@ -9,12 +18,12 @@ import { getTokenDecimals as getEvmTokenDecimals, getTokenSymbol as getEvmTokenS
 export async function enrichPaymentRequirements(
   requirements: PaymentRequirements[],
   clusterId: string = "mainnet"
-): Promise<PaymentRequirements[]> {
+): Promise<EnrichedPaymentRequirements[]> {
   return Promise.all(
     requirements.map(async (req) => {
       // Skip if metadata is already present
       if (req.tokenDecimals !== undefined && req.tokenSymbol !== undefined) {
-        return req;
+        return req as EnrichedPaymentRequirements;
       }
 
       // Handle different namespaces
@@ -28,8 +37,8 @@ export async function enrichPaymentRequirements(
         return {
           ...req,
           tokenDecimals: decimals,
-          tokenSymbol: symbol || undefined,
-        };
+          tokenSymbol: symbol,
+        } as EnrichedPaymentRequirements;
       } else if (req.namespace === "evm") {
         // Get token metadata for EVM tokens
         const [decimals, symbol] = await Promise.all([
@@ -40,12 +49,12 @@ export async function enrichPaymentRequirements(
         return {
           ...req,
           tokenDecimals: decimals,
-          tokenSymbol: symbol || undefined,
-        };
+          tokenSymbol: symbol,
+        } as EnrichedPaymentRequirements;
       }
 
       // Return unchanged for unknown namespaces
-      return req;
+      return req as EnrichedPaymentRequirements;
     })
   );
 }

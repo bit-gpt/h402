@@ -74,7 +74,9 @@ export async function verify(
       default:
         return {
           isValid: false,
-          errorMessage: `Unsupported payload type: ${(payload.payload as any).type}`,
+          errorMessage: `Unsupported payload type: ${
+            (payload.payload as any).type
+          }`,
         };
     }
 
@@ -148,7 +150,7 @@ async function verifyPaymentAmount(
   console.log("paymentRequirements", paymentRequirements);
 
   // Check if this is a native SOL transfer or SPL token transfer
-  if (paymentRequirements.tokenType === "NATIVE") {
+  if (paymentRequirements.tokenAddress === "11111111111111111111111111111111") {
     // Native SOL transfer
     let totalTransferred = BigInt(0);
 
