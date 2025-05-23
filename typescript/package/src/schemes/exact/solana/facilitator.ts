@@ -1,4 +1,4 @@
-import { address, createSolanaRpc, GetTransactionApi } from "@solana/kit";
+import { address, GetTransactionApi } from "@solana/kit";
 import { PaymentPayload, PaymentRequirements } from "../../../types/index.js";
 import { Payload } from "../../../types/scheme/exact/solana/index.js";
 import { SettleResponse, VerifyResponse } from "../../../types/facilitator.js";
@@ -26,11 +26,6 @@ export async function verify(
       networkId: paymentRequirements.networkId,
       resource: paymentRequirements.resource,
     });
-
-    // Create RPC client for Solana cluster
-    const rpc = createSolanaRpc(
-      solana.getClusterUrl(paymentRequirements.networkId)
-    );
 
     // Get transaction signature based on payload type
     let txSignature: string;

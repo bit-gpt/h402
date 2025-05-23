@@ -4,10 +4,10 @@ import {
   getProgramDerivedAddress,
 } from "@solana/kit";
 import type { AccountInfoWithJsonData } from "@solana/kit";
-import { getClusterUrl } from "./clusterEndpoints.js";
 import { NATIVE_SOL_DECIMALS } from "./index.js";
 import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
+import {getFacilitator} from "../next.js";
 
 // Metadata program ID and address
 const TOKEN_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
@@ -33,7 +33,7 @@ export async function getTokenDecimals(
   }
 
   try {
-    const rpc = createSolanaRpc(getClusterUrl(clusterId));
+    const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
     const { value: mintInfo } = await rpc
       .getAccountInfo(address(tokenAddress), {
         encoding: "jsonParsed",
@@ -88,7 +88,7 @@ export async function getTokenSymbol(
   }
 
   try {
-    const rpc = createSolanaRpc(getClusterUrl(clusterId));
+    const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
 
     // First verify it's a mint account
     const { value: mintInfo } = await rpc
