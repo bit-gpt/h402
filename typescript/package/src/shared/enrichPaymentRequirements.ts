@@ -37,8 +37,8 @@ export async function enrichPaymentRequirements(
         return {
           ...req,
           tokenDecimals: decimals,
-          tokenSymbol: symbol,
-        } as EnrichedPaymentRequirements;
+          tokenSymbol: symbol || "UNKNOWN",
+        };
       } else if (req.namespace === "evm") {
         // Get token metadata for EVM tokens
         const [decimals, symbol] = await Promise.all([
@@ -49,8 +49,8 @@ export async function enrichPaymentRequirements(
         return {
           ...req,
           tokenDecimals: decimals,
-          tokenSymbol: symbol,
-        } as EnrichedPaymentRequirements;
+          tokenSymbol: symbol || "UNKNOWN",
+        };
       }
 
       // Return unchanged for unknown namespaces

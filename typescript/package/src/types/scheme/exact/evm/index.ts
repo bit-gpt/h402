@@ -1,16 +1,16 @@
-import {
+import type {
   PaymentPayload as ImportedPaymentPayloadType,
   Hex,
 } from "../../../index.js";
 
-type NativeTransferParameters = {
+export type NativeTransferParameters = {
   from: Hex;
   to: Hex;
   value: bigint;
   nonce: number;
 };
 
-type TokenTransferParameters = {
+export type TokenTransferParameters = {
   from: Hex;
   to: Hex;
   value: bigint;
@@ -18,7 +18,7 @@ type TokenTransferParameters = {
   nonce: number;
 };
 
-type AuthorizationParameters = {
+export type AuthorizationParameters = {
   from: Hex;
   to: Hex;
   value: bigint;
@@ -28,7 +28,7 @@ type AuthorizationParameters = {
   version: string;
 };
 
-type SignAndSendTransactionParameters = {
+export type SignAndSendTransactionParameters = {
   from: Hex;
   to: Hex;
   value: bigint;
@@ -36,60 +36,44 @@ type SignAndSendTransactionParameters = {
   nonce: Hex;
 };
 
-type NativeTransferPayload = {
+export type NativeTransferPayload = {
   type: "nativeTransfer";
   signature: Hex;
   transaction: NativeTransferParameters;
 };
 
-type TokenTransferPayload = {
+export type TokenTransferPayload = {
   type: "tokenTransfer";
   signature: Hex;
   transaction: TokenTransferParameters;
 };
 
-type AuthorizationPayload = {
+export type AuthorizationPayload = {
   type: "authorization";
   signature: Hex;
   authorization: AuthorizationParameters;
 };
 
-type SignAndSendTransactionPayload = {
+export type SignAndSendTransactionPayload = {
   type: "signAndSendTransaction";
   signedMessage: Hex;
   transactionHash: Hex;
 };
 
-type Payload =
+export type Payload =
   | AuthorizationPayload
   | NativeTransferPayload
   | TokenTransferPayload
   | SignAndSendTransactionPayload;
 
-type NativeTransferPaymentPayload =
+export type NativeTransferPaymentPayload =
   ImportedPaymentPayloadType<NativeTransferPayload>;
 
-type TokenTransferPaymentPayload =
+export type TokenTransferPaymentPayload =
   ImportedPaymentPayloadType<TokenTransferPayload>;
 
-type AuthorizationPaymentPayload =
+export type AuthorizationPaymentPayload =
   ImportedPaymentPayloadType<AuthorizationPayload>;
 
-type SignAndSendTransactionPaymentPayload =
+export type SignAndSendTransactionPaymentPayload =
   ImportedPaymentPayloadType<SignAndSendTransactionPayload>;
-
-export {
-  Payload,
-  AuthorizationPayload,
-  NativeTransferPayload,
-  TokenTransferPayload,
-  SignAndSendTransactionPayload,
-  NativeTransferPaymentPayload,
-  TokenTransferPaymentPayload,
-  AuthorizationPaymentPayload,
-  SignAndSendTransactionPaymentPayload,
-  NativeTransferParameters,
-  TokenTransferParameters,
-  AuthorizationParameters,
-  SignAndSendTransactionParameters,
-};

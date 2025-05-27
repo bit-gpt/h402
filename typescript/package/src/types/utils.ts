@@ -1,5 +1,3 @@
-type Money = string | number;
+export type Money = string | number;
 
-type Hex = `0x${string}`;
-
-export { Money, Hex };
+export type Hex = `0x${string}`;

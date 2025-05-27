@@ -3,6 +3,28 @@ import {
   address,
   getProgramDerivedAddress,
 } from "@solana/kit";
+
+/**
+ * Convert a hex string to Uint8Array
+ * Browser-compatible replacement for Buffer.from(hex, 'hex')
+ */
+function hexToUint8Array(hexString: string): Uint8Array {
+  // Remove '0x' prefix if present
+  const hex = hexString.startsWith('0x') ? hexString.slice(2) : hexString;
+  
+  // Ensure even length
+  const len = hex.length;
+  if (len % 2 !== 0) {
+    throw new Error(`Invalid hex string length: ${len}`);
+  }
+  
+  const bytes = new Uint8Array(len / 2);
+  for (let i = 0; i < len; i += 2) {
+    bytes[i/2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  
+  return bytes;
+}
 import type { AccountInfoWithJsonData } from "@solana/kit";
 import { getClusterUrl } from "./clusterEndpoints.js";
 import { NATIVE_SOL_DECIMALS } from "./index.js";
@@ -69,9 +91,11 @@ async function findMetadataAddress(mint: string): Promise<string> {
   const [metadataAddress] = await getProgramDerivedAddress({
     programAddress: TOKEN_METADATA_PROGRAM_ADDRESS,
     seeds: [
-      Buffer.from("metadata"),
-      Buffer.from(TOKEN_METADATA_PROGRAM_ID, "hex"),
-      Buffer.from(mint, "hex"),
+      // Use TextEncoder for string to bytes conversion instead of Buffer
+      new TextEncoder().encode("metadata"),
+      // For hex strings, convert to Uint8Array manually
+      hexToUint8Array(TOKEN_METADATA_PROGRAM_ID),
+      hexToUint8Array(mint),
     ],
   });
 

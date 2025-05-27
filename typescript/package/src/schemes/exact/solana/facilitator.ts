@@ -147,8 +147,6 @@ async function verifyPaymentAmount(
   const payToAddress = address(paymentRequirements.payToAddress);
   const requiredAmount = BigInt(paymentRequirements.amountRequired.toString());
 
-  console.log("paymentRequirements", paymentRequirements);
-
   // Check if this is a native SOL transfer or SPL token transfer
   if (paymentRequirements.tokenAddress === "11111111111111111111111111111111") {
     // Native SOL transfer

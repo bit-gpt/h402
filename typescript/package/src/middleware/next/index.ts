@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server.js";
-import { MiddlewareConfig, PaymentRequirements } from "../../types/protocol.js";
-import { getPaywallHtml } from "../../shared/paywall.js";
-import { toJsonSafe } from "../../shared/index.js";
-import { VerifyResponse, FacilitatorResponse } from "../../types/index.js";
-import { useFacilitator } from "../utils/index.js";
-import { safeBase64Decode } from "../../shared/base64.js";
-import { enrichPaymentRequirements } from "../../shared/enrichPaymentRequirements.js";
-import { getUrl } from "../../shared/next.js";
+import {NextRequest, NextResponse} from "next/server.js";
+import {MiddlewareConfig, PaymentRequirements} from "../../types/protocol.js";
+import {toJsonSafe} from "../../shared/index.js";
+import {FacilitatorResponse, VerifyResponse} from "../../types/index.js";
+import {useFacilitator} from "../utils/index.js";
+import {safeBase64Decode} from "../../shared/base64.js";
+import {enrichPaymentRequirements} from "../../shared/enrichPaymentRequirements.js";
+import {paywallHtml} from "../../shared/paywall/paywallHtml";
 
 /**
  * Enhanced h402NextMiddleware that supports multiple payment options via X-PAYMENT header
@@ -15,7 +14,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
   // Create facilitator client using the hook
   const facilitatorUrl =
     config.facilitatorUrl || "https://facilitator.bitgpt.xyz";
-  const { verify, settle } = useFacilitator(facilitatorUrl);
+  const {verify, settle} = useFacilitator(facilitatorUrl);
 
   /**
    * Create a 402 response for API requests
@@ -29,7 +28,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
         error,
         paymentRequirements: toJsonSafe(paymentRequirements),
       },
-      { status: 402 }
+      {status: 402}
     );
   };
 
@@ -40,52 +39,28 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     request: NextRequest,
     paymentRequirements: PaymentRequirements[]
   ) => {
-    // Check if a paywall route is configured
-    if (config.paywallRoute) {
-      const redirectUrl = new URL(config.paywallRoute, getUrl(request));
-
-      // Set the return URL
-      redirectUrl.searchParams.set("returnUrl", getUrl(request));
-
-      // Enrich payment requirements with metadata
-      const enrichedRequirements = await enrichPaymentRequirements(
-        paymentRequirements
-      );
-
-      // Set the payment requirements
-      redirectUrl.searchParams.set(
-        "requirements",
-        JSON.stringify(toJsonSafe(enrichedRequirements))
-      );
-
-      // Extract and pass along the prompt parameter if it exists in the original request
-      const originalUrl = new URL(getUrl(request));
-      const prompt = originalUrl.searchParams.get("prompt");
-      if (prompt) {
-        redirectUrl.searchParams.set("prompt", prompt);
-      }
-
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Inline HTML paywall if no paywall route is configured
+    // Enrich payment requirements with metadata
     const enrichedRequirements = await enrichPaymentRequirements(
       paymentRequirements
     );
-    return new NextResponse(
-      getPaywallHtml({
-        paymentRequirements: enrichedRequirements,
-        currentUrl: getUrl(request),
-      }),
-      {
-        status: 402,
-        headers: { "Content-Type": "text/html" },
-      }
+
+    // Inject the payment requirements data
+    const injectScript = `<script>window.h402 = { paymentRequirements: ${JSON.stringify(enrichedRequirements)} }</script>`;
+
+    // Insert the script right before the closing </head> tag
+    const modifiedHtml = paywallHtml.replace(
+      "</head>",
+      `${injectScript}</head>`
     );
+
+    return new NextResponse(modifiedHtml, {
+      status: 402,
+      headers: {"Content-Type": "text/html"},
+    });
   };
 
   return async function middleware(request: NextRequest) {
-    const { pathname } = request.nextUrl;
+    const {pathname} = request.nextUrl;
 
     // Find matching route
     const matchingRoute = Object.entries(config.routes).find(([route, _]) => {
@@ -111,9 +86,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       return isHtmlRequest
         ? handleBrowserPaymentRequired(request, paymentRequirements)
         : createApiPaymentRequiredResponse(
-            "Payment required",
-            paymentRequirements
-          );
+          "Payment required",
+          paymentRequirements
+        );
     }
 
     // Try to verify the payment
@@ -124,7 +99,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       // Try to match the payment payload with appropriate requirement
       const decodedPayload = safeBase64Decode(paymentHeader);
       const paymentPayload = JSON.parse(decodedPayload);
-      const { namespace, networkId, scheme, resource } = paymentPayload;
+      const {namespace, networkId, scheme, resource} = paymentPayload;
 
       console.log(
         `[Payment] Decoded payload: namespace=${namespace}, networkId=${networkId}, scheme=${scheme}, resource=${resource}`

@@ -1,0 +1,25 @@
+server_tokens off;
+autoindex off;
+
+upstream next {
+  server 127.0.0.1:3000;
+}
+
+server {
+  listen 80;
+  server_name _;
+  location / {
+    try_files / @next;
+  }
+
+  location @next {
+    proxy_pass http://next;
+    proxy_set_header Host $host;
+    proxy_set_header x-scheme $scheme;
+  }
+
+  location /uploads {
+    try_files $uri @next;
+    alias /app/public/uploads;
+  }
+}

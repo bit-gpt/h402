@@ -54,7 +54,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "static"
   ],
   "devDependencies": {
     "@types/node": "^22.15.3"

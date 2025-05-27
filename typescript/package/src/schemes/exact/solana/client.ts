@@ -109,9 +109,15 @@ async function sendAndCreatePayload(
 
   if (typeof client.signTransaction === "function") {
     const [signedTx] = await client.signTransaction([transaction]);
-    const base64Tx = Buffer.from(signedTx.messageBytes).toString(
-      "base64"
-    ) as Base64EncodedWireTransaction;
+    // Use browser-compatible approach for base64 encoding
+    const bytes = signedTx.messageBytes;
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Tx = btoa(binary) as Base64EncodedWireTransaction;
+    console.log("[DEBUG] Encoded transaction to base64");
     const response = await rpc.sendTransaction(base64Tx).send();
 
     txSignature =
@@ -124,7 +130,12 @@ async function sendAndCreatePayload(
     await waitForConfirmation(txSignature);
   } else if (typeof client.signAndSendTransaction === "function") {
     const [sigBytes] = await client.signAndSendTransaction([transaction]);
-    txSignature = solanaSignature(bs58.encode(Buffer.from(sigBytes)));
+    // Use browser-compatible approach instead of Buffer
+    // Convert Uint8Array to format expected by bs58.encode
+    const bytes = sigBytes;
+    const uint8Array = new Uint8Array(bytes);
+    txSignature = solanaSignature(bs58.encode(uint8Array));
+    console.log("[DEBUG] Encoded signature using bs58");
     await waitForConfirmation(txSignature);
   } else {
     throw new Error(
@@ -208,7 +219,10 @@ async function createPayment(
     requirements
   );
 
-  return Buffer.from(JSON.stringify(payload)).toString("base64");
+  // Use browser-compatible approach for base64 encoding
+  const jsonString = JSON.stringify(payload);
+  console.log("[DEBUG] Encoding payload to base64");
+  return btoa(jsonString);
 }
 
 export { createPayment };

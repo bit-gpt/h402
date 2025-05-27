@@ -14,7 +14,14 @@ const NONCE_BYTES = 32;
 function createNonce(): Hex {
   try {
     const randomBytes = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
-    return `0x${Buffer.from(randomBytes).toString("hex")}` as Hex;
+    // Use browser-compatible approach to convert Uint8Array to hex string
+    let hexString = '';
+    for (let i = 0; i < randomBytes.length; i++) {
+      const hex = randomBytes[i].toString(16).padStart(2, '0');
+      hexString += hex;
+    }
+    console.log("[DEBUG] Generated nonce using browser-compatible approach");
+    return `0x${hexString}` as Hex;
   } catch (error) {
     throw new Error(
       `Failed to generate nonce: ${

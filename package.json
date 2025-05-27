@@ -2,10 +2,13 @@
   "name": "h402-monorepo",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "description": "BitGPT's 402 open protocol for blockchain-native payments",
   "scripts": {
     "build:package": "pnpm --filter @bit-gpt/h402 build",
-    "dev:example": "pnpm build && pnpm --filter example dev",
+    "build:paywall": "pnpm run build && pnpm --filter @bit-gpt/h402 build:paywall",
+    "dev:example": "chmod +x ./scripts/build-all-and-start-example.sh && ./scripts/build-all-and-start-example.sh",
+    "dev:paywall": "pnpm build && pnpm --filter paywall-app dev",
     "build": "pnpm -r build",
     "clean": "pnpm -r clean",
     "test": "pnpm -r test"

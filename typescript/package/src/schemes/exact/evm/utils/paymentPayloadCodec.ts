@@ -3,7 +3,7 @@ import {
   safeBase64Decode,
 } from "../../../../shared/index.js";
 import { exact } from "../../../../types/index.js";
-import { PaymentPayload } from "../../../../types/index.js";
+import type { PaymentPayload } from "../../../../types/index.js";
 
 function encodePaymentPayload(
   payment: PaymentPayload<

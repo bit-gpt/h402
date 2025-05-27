@@ -1,0 +1,493 @@
+@import "tailwindcss";
+
+:root {
+  /* Light Theme Base Colors */
+  --background: #f8fafb;
+  --foreground: #1a1a1a;
+
+  /* UI Colors */
+  --color-card-bg: #ffffff;
+  --color-card-border: #e2e8f0;
+  --color-card-hover: #f8fafc;
+
+  /* Border colors */
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+
+  /* Text colors */
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary: #475569;
+  --color-text-disabled: #94a3b8;
+
+  /* Button colors */
+  --color-button-bg: #f1f5f9;
+  --color-button-hover: #e2e8f0;
+  --color-button-disabled: #e2e8f0;
+  --color-button-bg-disabled: #f8fafc;
+
+  /* Brand colors */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: #dbeafe;
+
+  /* Status colors */
+  --color-success: #22c55e;
+  --color-success-bg: #dcfce7;
+  --color-error: #ef4444;
+  --color-error-bg: #fee2e2;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fef3c7;
+  --color-info: #3b82f6;
+  --color-info-bg: #dbeafe;
+
+  /* Surface colors */
+  --color-surface-1: #f9fafb;
+  --color-surface-2: #f3f4f6;
+  --color-surface-3: #e5e7eb;
+
+  /* Accent colors */
+  --color-red: #fee2e2;
+  --color-red-hover: #fecaca;
+  --color-red-text: #dc2626;
+  --color-blue-text: #3b82f6;
+  --color-purple-text: #9333ea;
+  --color-green-text: #16a34a;
+
+  /* Shadow colors */
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-strong: rgba(0, 0, 0, 0.15);
+
+  /* Transition */
+  --transition: all 0.2s ease;
+}
+
+/* Beautiful Dark Theme */
+.dark {
+  --background: #0f0f10;
+  --foreground: #f7f7f7;
+
+  /* UI Colors */
+  --color-card-bg: #1a1a1b;
+  --color-card-border: #2a2a2b;
+  --color-card-hover: #252526;
+
+  /* Border colors */
+  --color-border: #2a2a2b;
+  --color-border-hover: #383838;
+
+  /* Text colors */
+  --color-text-primary: #f7f7f7;
+  --color-text-secondary: #a8a8a8;
+  --color-text-tertiary: #c2c2c2;
+  --color-text-disabled: #787878;
+
+  /* Button colors */
+  --color-button-bg: #2a2a2b;
+  --color-button-hover: #353536;
+  --color-button-disabled: #242425;
+  --color-button-bg-disabled: #1a1a1b;
+
+  /* Brand colors */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-light: #1e3a8a;
+
+  /* Status colors */
+  --color-success: #4ade80;
+  --color-success-bg: #14532d;
+  --color-error: #f87171;
+  --color-error-bg: #7f1d1d;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #713f12;
+  --color-info: #60a5fa;
+  --color-info-bg: #1e3a8a;
+
+  /* Surface colors */
+  --color-surface-1: #252525;
+  --color-surface-2: #2f2f30;
+  --color-surface-3: #3a3a3b;
+
+  /* Accent colors */
+  --color-red: #991b1b;
+  --color-red-hover: #b91c1c;
+  --color-red-text: #fca5a5;
+  --color-blue-text: #93c5fd;
+  --color-purple-text: #c084fc;
+  --color-green-text: #86efac;
+
+  /* Shadow colors */
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-strong: rgba(0, 0, 0, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    var(--font-sans),
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: 1.5;
+  transition: var(--transition);
+}
+
+/* Global styles */
+* {
+  box-sizing: border-box;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+h2 {
+  font-size: 2rem;
+}
+h3 {
+  font-size: 1.5rem;
+}
+h4 {
+  font-size: 1.25rem;
+}
+h5 {
+  font-size: 1.125rem;
+}
+h6 {
+  font-size: 1rem;
+}
+
+p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* Cards */
+.card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+/* Buttons */
+button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: var(--transition);
+  border: none;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+button.primary:hover:not([disabled]) {
+  background: var(--color-primary-hover);
+}
+
+button.secondary {
+  background: var(--color-button-bg);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+button.secondary:hover:not([disabled]) {
+  background: var(--color-button-hover);
+  border-color: var(--color-border-hover);
+}
+
+button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.7;
+  background: var(--color-button-bg-disabled);
+  color: var(--color-text-disabled);
+}
+
+/* Payment Button Styles */
+.payment-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  background-image: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-purple-text)
+  );
+  color: white;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.payment-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.payment-button-processing {
+  opacity: 0.9;
+  cursor: wait;
+}
+
+.payment-button-spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.payment-error-message {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(var(--color-error-rgb), 0.1);
+  border: 1px solid rgba(var(--color-error-rgb), 0.2);
+  border-radius: 0.25rem;
+  text-align: left;
+}
+
+/* Input fields */
+input,
+textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-1);
+  color: var(--color-text-primary);
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Improve contrast for placeholders in dark mode */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.9;
+}
+
+input:disabled,
+textarea:disabled {
+  background: var(--color-surface-2);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Utility classes */
+.surface-1 {
+  background: var(--color-surface-1);
+}
+.surface-2 {
+  background: var(--color-surface-2);
+}
+.surface-3 {
+  background: var(--color-surface-3);
+}
+
+.text-primary {
+  color: var(--color-text-primary);
+}
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+.text-tertiary {
+  color: var(--color-text-tertiary);
+}
+.text-disabled {
+  color: var(--color-text-disabled);
+}
+
+.border {
+  border: 1px solid var(--color-border);
+}
+.border-none {
+  border: none;
+}
+
+/* Status messages */
+.status-success {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.status-error {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.status-warning {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.status-info {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+/* Code blocks */
+code {
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: var(--font-mono), monospace;
+}
+
+pre {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Shadows */
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 var(--color-shadow);
+}
+.shadow {
+  box-shadow:
+    0 4px 6px -1px var(--color-shadow),
+    0 2px 4px -1px var(--color-shadow);
+}
+.shadow-lg {
+  box-shadow:
+    0 10px 15px -3px var(--color-shadow),
+    0 4px 6px -2px var(--color-shadow);
+}
+
+/* Gradients */
+.gradient-primary {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-purple-text)
+  );
+}
+
+.gradient-surface {
+  background: linear-gradient(
+    135deg,
+    var(--color-surface-1),
+    var(--color-surface-2)
+  );
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.75rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+}
+
+/* High contrast mode */
+@media (forced-colors: active) {
+  .card {
+    border-color: CanvasText;
+  }
+
+  button[disabled] {
+    border-color: GrayText;
+    color: GrayText;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

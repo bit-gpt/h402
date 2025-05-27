@@ -1,16 +1,16 @@
-import { PaymentRequirements } from "./protocol.js";
+import { type PaymentRequirements } from "./protocol.js";
 
-type FacilitatorRequest = {
+export type FacilitatorRequest = {
   paymentHeader: string;
   paymentRequirements: PaymentRequirements;
 };
 
-type FacilitatorResponse<T> = {
+export type FacilitatorResponse<T> = {
   data: T | null;
   error?: string;
 };
 
-type SettleResponse = {
+export type SettleResponse = {
   success: boolean;
   error?: string | undefined;
   txHash?: string | undefined;
@@ -20,7 +20,7 @@ type SettleResponse = {
   payer?: string | undefined;
 };
 
-type VerifyResponse = {
+export type VerifyResponse = {
   isValid: boolean;
   type?: "payload" | "transaction";
   txHash?: string;
@@ -36,10 +36,3 @@ export interface FacilitatorConfig {
   /** Optional function to create authentication headers */
   createAuthHeaders?: () => Record<string, string>;
 }
-
-export {
-  FacilitatorRequest,
-  FacilitatorResponse,
-  SettleResponse,
-  VerifyResponse,
-};

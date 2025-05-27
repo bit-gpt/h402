@@ -55,15 +55,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get prompt from query parameters or request body
+    // Get prompt and redirect URL from query parameters or request body
     const url = new URL(request.url);
     let prompt = url.searchParams.get("prompt");
+    let redirectUrl = url.searchParams.get("redirect");
 
     // If prompt is not in query parameters, try to get it from request body
     if (!prompt) {
       try {
         const requestBody = await request.json();
         prompt = requestBody.prompt;
+        redirectUrl = requestBody.redirect || redirectUrl;
         console.log("Request body:", requestBody);
       } catch (error) {
         console.error("Error parsing request body:", error);
@@ -88,12 +90,22 @@ export async function POST(request: NextRequest) {
       console.error("Background image generation failed:", error);
     });
 
+    // If a redirect URL was provided, append the requestId to it
+    const headers: HeadersInit = {};
+    if (redirectUrl) {
+      // Append the requestId to the redirect URL
+      const finalRedirectUrl = `${redirectUrl}${requestId}`;
+      headers['X-Redirect-URL'] = finalRedirectUrl;
+      console.log(`Setting redirect URL: ${finalRedirectUrl}`);
+    }
+
     // Return accepted status with requestId
     return NextResponse.json({
       success: true,
       message: "Image generation started",
-      requestId
-    }, { status: 202 });
+      requestId,
+      redirectUrl: redirectUrl ? `${redirectUrl}${requestId}` : undefined
+    }, { status: 202, headers });
   } catch (error) {
     console.error("Unexpected error in POST handler:", error);
     return NextResponse.json({

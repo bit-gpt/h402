@@ -1,7 +1,6 @@
-import { createSolanaRpc } from "@solana/kit";
-import { PublicActions, WalletClient } from "viem";
-import { PaymentRequirements } from "./protocol.js";
-import {
+import type { PublicActions, WalletClient } from "viem";
+import type { PaymentRequirements } from "./protocol.js";
+import type {
   TransactionModifyingSigner,
   TransactionSendingSigner,
 } from "@solana/signers";

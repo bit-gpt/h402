@@ -1,4 +1,5 @@
 packages:
   - 'typescript/package'
+  - 'typescript/package/paywall-app'
   - 'typescript/example'
   - 'typescript/facilitator'
