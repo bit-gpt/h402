@@ -7,12 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const htmlContent = fs.readFileSync(
-  path.join(__dirname, "../typescript/package/paywall-app/dist/index.html"),
+  path.join(__dirname, "../typescript/packages/h402/src/paywall-app/dist/index.html"),
   "utf8"
 );
 const moduleDir = path.join(
   __dirname,
-  "../typescript/package/src/shared/paywall"
+  "../typescript/packages/h402/src/shared/paywall"
 );
 const moduleFile = path.join(moduleDir, "paywallHtml.ts");
 

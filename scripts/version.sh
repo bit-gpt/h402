@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Go to typescript/package directory
-cd typescript/package/
+cd typescript/packages/h402
 
 # Get current version
 CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -25,7 +25,7 @@ case $INCREMENT in
     VERSION_PARTS[1]=0
     VERSION_PARTS[2]=0
     ;;
-  minor) 
+  minor)
     ((VERSION_PARTS[1]++))
     VERSION_PARTS[2]=0
     ;;

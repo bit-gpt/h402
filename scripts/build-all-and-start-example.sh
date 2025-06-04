@@ -5,7 +5,7 @@ echo "Current directory: $(pwd)"
 
 # Create a temporary mock paywall HTML file
 echo "Creating temporary mock paywall HTML..."
-cat > ./typescript/package/src/shared/paywall/paywallHtml.ts << 'EOL'
+cat > ./typescript/packages/h402/src/shared/paywall/paywallHtml.ts << 'EOL'
 // This is a temporary mock file that will be replaced with the actual paywall HTML
 export const paywallHtml = "<html><head><title>Mock Paywall</title></head><body><div>Payment Required</div></body></html>";
 EOL

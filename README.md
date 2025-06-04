@@ -176,4 +176,4 @@ See [PLAYGROUND.md](./PLAYGROUND.md).
 
 ## License
 
-The h402 protocol is licensed under the [Apache-2.0](https://github.com/coinbase/x402/blob/main/LICENSE.md) license.
+The h402 protocol is licensed under the [Apache-2.0](https://github.com/coinbase/@bit-gpt/h402/blob/main/LICENSE.md) license.
