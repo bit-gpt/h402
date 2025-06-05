@@ -1,11 +1,11 @@
 import {
   address,
   appendTransactionMessageInstruction,
-  type Base64EncodedWireTransaction,
   type CompilableTransactionMessage,
   compileTransaction,
   createSolanaRpc,
   createTransactionMessage,
+  getBase64EncodedWireTransaction,
   pipe,
   setTransactionMessageFeePayer,
   setTransactionMessageLifetimeUsingBlockhash,
@@ -15,14 +15,8 @@ import {
 
 import {getCreateAssociatedTokenIdempotentInstruction, getTransferInstruction,} from "@solana-program/token";
 import {getTransferSolInstruction, SYSTEM_PROGRAM_ADDRESS,} from "@solana-program/system";
-import {
-  Namespace,
-  PaymentRequirements,
-  SolanaClient,
-  SolanaPaymentPayload
-} from "../../../types";
-import {getAssociatedTokenAddress} from "../../../shared/solana/tokenAddress.js";
-import {createAddressSigner} from "../../../shared/solana/signers.js";
+import {ExactSolanaPayload, Namespace, PaymentRequirements, SolanaClient, SolanaPaymentPayload} from "../../../types";
+import {createAddressSigner, getAssociatedTokenAddress} from "../../../shared/solana";
 import bs58 from "bs58";
 import {getFacilitator} from "../../../shared/next.js";
 
@@ -95,6 +89,8 @@ async function sendAndCreatePayload(
   const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
 
   let txSignature: string;
+  let base64WireTx = "";
+  let payload: ExactSolanaPayload;
   const waitForConfirmation = async (sig: string) => {
     return rpc
       .getSignatureStatuses([solanaSignature(sig)], {
@@ -104,31 +100,28 @@ async function sendAndCreatePayload(
   };
 
   if (typeof client.signTransaction === "function") {
+    console.log("SIGN TRANSACTION");
     const [signedTx] = await client.signTransaction([transaction]);
-    // Use browser-compatible approach for base64 encoding
-    const bytes = signedTx.messageBytes;
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    base64WireTx = getBase64EncodedWireTransaction(signedTx);
+    // const response = await rpc.sendTransaction(base64WireTx, {encoding: 'base64'}).send();
+    console.log("signedTx.signatures[message.feePayer.address]", signedTx.signatures[message.feePayer.address]);
+    txSignature = solanaSignature(bs58.encode(signedTx.signatures[message.feePayer.address] as Uint8Array));
+    payload = {
+      type: "signTransaction",
+      signature: txSignature,
+      transaction: base64WireTx
     }
-    const base64Tx = btoa(binary) as Base64EncodedWireTransaction;
-    console.log("[DEBUG] Encoded transaction to base64");
-    const response = await rpc.sendTransaction(base64Tx).send();
-
-    txSignature =
-      typeof response === "string"
-        ? response
-        : ((response as any)?.value?.toString() ??
-          (response as any)?.signature?.toString() ??
-          "");
-
-    await waitForConfirmation(txSignature);
   } else if (typeof client.signAndSendTransaction === "function") {
+    // Fallback
+    console.log("SIGN AND SEND TRANSACTION");
     const [sigBytes] = await client.signAndSendTransaction([transaction]);
     const uint8Array = new Uint8Array(sigBytes);
     txSignature = solanaSignature(bs58.encode(uint8Array));
-    console.log("[DEBUG] Encoded signature using bs58");
+    payload = {
+      type: "signAndSendTransaction",
+      signature: txSignature,
+    }
+    console.log("[DEBUG SIGN AND SEND] Encoded signature using bs58");
     await waitForConfirmation(txSignature);
   } else {
     throw new Error(
@@ -144,52 +137,7 @@ async function sendAndCreatePayload(
     resource: requirements.resource ?? `402 signature ${Date.now()}`,
   };
 
-  const payloadType =
-    typeof client.signAndSendTransaction === "function"
-      ? {
-        type: "signAndSendTransaction" as const,
-        signature: txSignature,
-        transaction: {signature: txSignature, memo: undefined},
-      }
-      : {
-        type: "signTransaction" as const,
-        signedTransaction: txSignature,
-        transaction: {signedTransaction: txSignature, memo: undefined},
-      };
-
-  const isNative =
-    !requirements.tokenAddress ||
-    requirements.tokenAddress === SYSTEM_PROGRAM_ADDRESS.toString();
-
-  if (!client.signTransaction && !client.signAndSendTransaction) {
-    return {
-      ...basePayload,
-      payload: isNative
-        ? {
-          type: "nativeTransfer" as const,
-          signature: txSignature,
-          transaction: {
-            from: client.publicKey,
-            to: requirements.payToAddress,
-            value: BigInt(requirements.amountRequired.toString()),
-            memo: undefined,
-          },
-        }
-        : {
-          type: "tokenTransfer" as const,
-          signature: txSignature,
-          transaction: {
-            from: client.publicKey,
-            to: requirements.payToAddress,
-            mint: requirements.tokenAddress!,
-            value: BigInt(requirements.amountRequired.toString()),
-            memo: undefined,
-          },
-        },
-    };
-  }
-
-  return {...basePayload, payload: payloadType};
+  return {...basePayload, payload};
 }
 
 async function createPayment(

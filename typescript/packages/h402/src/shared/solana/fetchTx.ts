@@ -4,7 +4,7 @@ import {
   type TransactionVersion,
   type GetTransactionApi,
 } from "@solana/kit";
-import { getClusterUrl } from "./clusterEndpoints.js";
+import {getFacilitator} from "../next";
 
 /**
  * Options for fetching a transaction
@@ -30,17 +30,13 @@ const DEFAULT_OPTIONS: FetchTxOptions = {
  */
 export async function fetchTransaction(
   signature: string,
-  clusterId: string,
   options: FetchTxOptions = {}
 ): Promise<ReturnType<GetTransactionApi["getTransaction"]>> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const rpc = createSolanaRpc(getClusterUrl(clusterId));
+  const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
 
   console.log(
     `[DEBUG-SOLANA-FETCH] Fetching transaction with signature: ${signature}`
-  );
-  console.log(
-    `[DEBUG-SOLANA-FETCH] Using cluster: ${getClusterUrl(clusterId)}`
   );
 
   const transactionOptions = {

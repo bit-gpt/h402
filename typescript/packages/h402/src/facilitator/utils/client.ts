@@ -21,6 +21,9 @@ function getTransport(rpcEnvVariable: string): HttpTransport {
 }
 
 function validateChainId(chainId: string): void {
+  // Solana
+  if (chainId === "mainnet") return
+  // EVM
   if (!evm.isChainSupported(chainId)) {
     throw new Error(`Unsupported chain ID: ${chainId}`);
   }

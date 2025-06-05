@@ -28,7 +28,7 @@ export async function parsePaymentRequirementsForAmount(
     throw new Error("Pay to address is required");
   }
 
-  console.log("Payment requirements:", details);
+  console.log("[h402 debug] Payment requirements:", details);
 
   // If already in smallestUnit format, no conversion needed
   if (details.amountRequiredFormat === "smallestUnit") {
@@ -64,7 +64,7 @@ export async function parsePaymentRequirementsForAmount(
         // Create an array to hold our fetch promises
         if (needDecimals) {
           fetchPromises.push(
-            solana.getTokenDecimals(details.tokenAddress, details.networkId)
+            solana.getTokenDecimals(details.tokenAddress)
           );
         }
 
@@ -76,7 +76,7 @@ export async function parsePaymentRequirementsForAmount(
                 solana as {
                   getTokenSymbol: typeof import("./solana/tokenMetadata.js").getTokenSymbol;
                 }
-              ).getTokenSymbol(details.tokenAddress, details.networkId)
+              ).getTokenSymbol(details.tokenAddress)
             );
           } else {
             fetchPromises.push(Promise.resolve(undefined));

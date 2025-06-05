@@ -17,7 +17,6 @@ import {
  */
 export async function enrichPaymentRequirements(
   requirements: PaymentRequirements[],
-  clusterId: string = "mainnet"
 ): Promise<EnrichedPaymentRequirements[]> {
   return Promise.all(
     requirements.map(async (req) => {
@@ -30,8 +29,8 @@ export async function enrichPaymentRequirements(
       if (req.namespace === "solana") {
         // Get token metadata for Solana tokens
         const [decimals, symbol] = await Promise.all([
-          getSolanaTokenDecimals(req.tokenAddress, clusterId),
-          getSolanaTokenSymbol(req.tokenAddress, clusterId),
+          getSolanaTokenDecimals(req.tokenAddress),
+          getSolanaTokenSymbol(req.tokenAddress),
         ]);
 
         return {

@@ -1,4 +1,5 @@
 packages:
   - 'typescript/packages/*'
+  - 'typescript/packages/h402/src/paywall-app'
   - 'examples/typescript/**/*'
 

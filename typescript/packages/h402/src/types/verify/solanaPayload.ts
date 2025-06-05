@@ -18,18 +18,6 @@ const SolanaTokenTransferParametersSchema = SolanaBaseTransactionParametersSchem
   memo: z.string().optional(),
 });
 
-// Sign and send transaction parameters schema
-const SolanaSignAndSendTransactionParametersSchema = z.object({
-  signature: z.string(),
-  memo: z.string().optional(),
-});
-
-// Sign transaction parameters schema
-const SolanaSignTransactionParametersSchema = z.object({
-  signedTransaction: z.string(),
-  memo: z.string().optional(),
-});
-
 // Sign message parameters schema
 const SolanaSignMessageParametersSchema = z.object({
   message: z.string(),
@@ -52,14 +40,14 @@ const SolanaTokenTransferPayloadSchema = z.object({
 const SolanaSignAndSendTransactionPayloadSchema = z.object({
   type: z.literal("signAndSendTransaction"),
   signature: z.string(),
-  transaction: SolanaSignAndSendTransactionParametersSchema,
 });
 
 const SolanaSignTransactionPayloadSchema = z.object({
   type: z.literal("signTransaction"),
-  signedTransaction: z.string(),
-  transaction: SolanaSignTransactionParametersSchema,
+  signature: z.string(),
+  transaction: z.string(),
 });
+export type SolanaSignTransactionPayload = z.infer<typeof SolanaSignTransactionPayloadSchema>;
 
 const SolanaSignMessagePayloadSchema = z.object({
   type: z.literal("signMessage"),
