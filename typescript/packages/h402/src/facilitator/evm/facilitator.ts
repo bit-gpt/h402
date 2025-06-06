@@ -1,13 +1,16 @@
-import { verify as verifyExact, settle as settleExact } from "../../schemes/exact/evm";
-import { ConnectedClient, SignerWallet } from "../../types/shared/evm";
 import {
-  SupportedEVMNetworks,
+  verify as verifyExact,
+  settle as settleExact,
+} from "../../schemes/exact/evm";
+import { EvmClient } from "../../types/shared/client";
+import {
   EvmPaymentPayload,
   PaymentRequirements,
   SettleResponse,
-  VerifyResponse, EvmNetworkToChainId, isSupportedEVMNetworkId,
+  VerifyResponse,
+  isSupportedEVMNetworkId,
 } from "../../types";
-import { Chain, Transport, Account } from "viem";
+import { PublicClient } from "viem";
 
 /**
  * Verifies a payment payload against the required payment details regardless of the scheme
@@ -18,14 +21,10 @@ import { Chain, Transport, Account } from "viem";
  * @param paymentRequirements - The payment requirements that the payload must satisfy
  * @returns A ValidPaymentRequest indicating if the payment is valid and any invalidation reason
  */
-export async function verify<
-  transport extends Transport,
-  chain extends Chain,
-  account extends Account | undefined,
->(
-  client: ConnectedClient<transport, chain, account>,
+export async function verify(
+  client: PublicClient,
   payload: EvmPaymentPayload,
-  paymentRequirements: PaymentRequirements,
+  paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
   if (
     paymentRequirements.scheme == "exact" &&
@@ -50,10 +49,10 @@ export async function verify<
  * @param paymentRequirements - The payment requirements that the payload must satisfy
  * @returns A SettleResponse indicating if the payment is settled and any settlement reason
  */
-export async function settle<transport extends Transport, chain extends Chain>(
-  client: SignerWallet<chain, transport>,
+export async function settle(
+  client: EvmClient,
   payload: EvmPaymentPayload,
-  paymentRequirements: PaymentRequirements,
+  paymentRequirements: PaymentRequirements
 ): Promise<SettleResponse> {
   if (
     paymentRequirements.scheme == "exact" &&
