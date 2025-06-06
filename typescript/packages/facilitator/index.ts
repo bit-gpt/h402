@@ -93,7 +93,7 @@ app.post("/settle", async (req: any, res: any) => {
 
     res.json({
       success: true,
-      transaction: settleResult.txHash,
+      transaction: settleResult.transaction,
     } as SettleResponse);
   } catch (error) {
     console.error(error);
@@ -102,7 +102,7 @@ app.post("/settle", async (req: any, res: any) => {
 });
 
 // Your Solana RPC endpoint - replace with your preferred node provider
-const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
+const SOLANA_RPC_URL = process.env.FACILITATOR_URL || "https://facilitator.bitgpt.xyz";
 
 // Add CORS middleware for the Solana RPC endpoint
 app.options("/solana-rpc", (req, res) => {
