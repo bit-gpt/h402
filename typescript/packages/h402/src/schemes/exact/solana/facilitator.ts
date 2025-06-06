@@ -1,12 +1,18 @@
-import {address, Base64EncodedWireTransaction, createSolanaRpc, GetTransactionApi} from "@solana/kit";
+import {
+  address,
+  Base64EncodedWireTransaction,
+  createSolanaRpc,
+  GetTransactionApi,
+} from "@solana/kit";
 import {
   PaymentRequirements,
   SettleResponse,
-  SolanaPaymentPayload, SolanaSignTransactionPayload,
-  VerifyResponse
+  SolanaPaymentPayload,
+  SolanaSignTransactionPayload,
+  VerifyResponse,
 } from "../../../types";
-import {solana} from "../../../shared/index.js";
-import {getFacilitator} from "../../../shared/next";
+import { solana } from "../../../shared/index.js";
+import { getFacilitator } from "../../../shared/next";
 
 /**
  * Verify a Solana payment for the exact scheme
@@ -22,17 +28,16 @@ export async function verify(
     return {
       isValid: false,
       errorMessage: 'Payment details must use the "solana" namespace',
-      invalidReason: 'invalid_payment_requirements',
+      invalidReason: "invalid_payment_requirements",
     };
   }
 
   try {
-    console.log("payload", payload);
-
     console.log("[DEBUG-SOLANA-VERIFY] Starting Solana payment verification", {
       payloadType: payload.payload.type,
       networkId: paymentRequirements.networkId,
-      resource: paymentRequirements.resource,
+      tokenAddress: paymentRequirements.tokenAddress,
+      amountRequired: paymentRequirements.amountRequired,
     });
 
     switch (payload.payload.type) {
@@ -43,16 +48,14 @@ export async function verify(
             isValid: false,
             errorMessage:
               "Missing required signature in signAndSendTransaction payload",
-            invalidReason: 'invalid_exact_solana_payload_signature',
+            invalidReason: "invalid_exact_solana_payload_signature",
           };
         }
-
-        console.log("payload.payload.signature", payload.payload.signature);
 
         // Fetch the transaction
         const txResponse = await solana.fetchTransaction(
           payload.payload.signature,
-          {waitForConfirmation: true}
+          { waitForConfirmation: true }
         );
 
         if (!txResponse) {
@@ -211,7 +214,7 @@ async function verifyPaymentAmount(
     }
   }
 
-  return {isValid: true};
+  return { isValid: true };
 }
 
 /**
@@ -236,13 +239,22 @@ export async function settle(
   }
 
   if (payload.payload.type === "signAndSendTransaction") {
-    return {success: false, transaction: "", error: "This payload type is not supported"};
+    return {
+      success: false,
+      transaction: "",
+      error: "This payload type is not supported",
+    };
   }
 
   const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
-  const response = await rpc.sendTransaction((payload.payload as SolanaSignTransactionPayload).transaction as Base64EncodedWireTransaction, {encoding: 'base64'}).send();
-  console.log("SETTLE signTransaction response", response);
-  console.log("payload.payload.signature", payload.payload.signature);
+  const response = await rpc
+    .sendTransaction(
+      (payload.payload as SolanaSignTransactionPayload)
+        .transaction as Base64EncodedWireTransaction,
+      { encoding: "base64" }
+    )
+    .send();
+  console.log("[DEBUG-SOLANA-SETTLE] txHash", response);
   if (response !== payload.payload.signature) {
     throw new Error("Something went wrong");
   }

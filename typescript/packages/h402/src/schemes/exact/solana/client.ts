@@ -13,16 +13,31 @@ import {
   type TransactionMessageWithBlockhashLifetime,
 } from "@solana/kit";
 
-import {getCreateAssociatedTokenIdempotentInstruction, getTransferInstruction,} from "@solana-program/token";
-import {getTransferSolInstruction, SYSTEM_PROGRAM_ADDRESS,} from "@solana-program/system";
-import {ExactSolanaPayload, Namespace, PaymentRequirements, SolanaClient, SolanaPaymentPayload} from "../../../types";
-import {createAddressSigner, getAssociatedTokenAddress} from "../../../shared/solana";
+import {
+  getCreateAssociatedTokenIdempotentInstruction,
+  getTransferInstruction,
+} from "@solana-program/token";
+import {
+  getTransferSolInstruction,
+  SYSTEM_PROGRAM_ADDRESS,
+} from "@solana-program/system";
+import {
+  ExactSolanaPayload,
+  Namespace,
+  PaymentRequirements,
+  SolanaClient,
+  SolanaPaymentPayload,
+} from "../../../types";
+import {
+  createAddressSigner,
+  getAssociatedTokenAddress,
+} from "../../../shared/solana";
 import bs58 from "bs58";
-import {getFacilitator} from "../../../shared/next.js";
+import { getFacilitator } from "../../../shared/next.js";
 
 async function buildPaymentTransaction(
   requirements: PaymentRequirements,
-  payerPublicKey: string,
+  payerPublicKey: string
 ): Promise<
   CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
 > {
@@ -37,7 +52,7 @@ async function buildPaymentTransaction(
     requirements.tokenAddress === SYSTEM_PROGRAM_ADDRESS.toString();
 
   const tx = pipe(
-    createTransactionMessage({version: 0}),
+    createTransactionMessage({ version: 0 }),
     (t) => setTransactionMessageFeePayer(payerSigner.address, t),
     (t) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, t)
   );
@@ -104,13 +119,14 @@ async function sendAndCreatePayload(
     const [signedTx] = await client.signTransaction([transaction]);
     base64WireTx = getBase64EncodedWireTransaction(signedTx);
     // const response = await rpc.sendTransaction(base64WireTx, {encoding: 'base64'}).send();
-    console.log("signedTx.signatures[message.feePayer.address]", signedTx.signatures[message.feePayer.address]);
-    txSignature = solanaSignature(bs58.encode(signedTx.signatures[message.feePayer.address] as Uint8Array));
+    txSignature = solanaSignature(
+      bs58.encode(signedTx.signatures[message.feePayer.address] as Uint8Array)
+    );
     payload = {
       type: "signTransaction",
       signature: txSignature,
-      transaction: base64WireTx
-    }
+      transaction: base64WireTx,
+    };
   } else if (typeof client.signAndSendTransaction === "function") {
     // Fallback
     console.log("SIGN AND SEND TRANSACTION");
@@ -120,7 +136,7 @@ async function sendAndCreatePayload(
     payload = {
       type: "signAndSendTransaction",
       signature: txSignature,
-    }
+    };
     console.log("[DEBUG SIGN AND SEND] Encoded signature using bs58");
     await waitForConfirmation(txSignature);
   } else {
@@ -137,7 +153,7 @@ async function sendAndCreatePayload(
     resource: requirements.resource ?? `402 signature ${Date.now()}`,
   };
 
-  return {...basePayload, payload};
+  return { ...basePayload, payload };
 }
 
 async function createPayment(
@@ -152,7 +168,7 @@ async function createPayment(
 
   const txMessage = await buildPaymentTransaction(
     requirements,
-    client.publicKey,
+    client.publicKey
   );
 
   const payload = await sendAndCreatePayload(
@@ -168,4 +184,4 @@ async function createPayment(
   return btoa(jsonString);
 }
 
-export {createPayment};
+export { createPayment };
