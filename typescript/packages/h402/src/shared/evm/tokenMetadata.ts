@@ -8,7 +8,7 @@ import { getPublicClient } from "../../types/shared/evm";
  */
 export async function getTokenDecimals(
   tokenAddress: string,
-  networkId: string = "bsc"
+  networkId: string = "56"
 ): Promise<number> {
   // Special case for native token (0x0 address)
   if (tokenAddress === "0x0000000000000000000000000000000000000000") {
@@ -41,12 +41,12 @@ export async function getTokenDecimals(
  */
 export async function getTokenSymbol(
   tokenAddress: string,
-  networkId: string = "bsc"
+  networkId: string = "56"
 ): Promise<string | undefined> {
   // Special case for native token (0x0 address)
   if (tokenAddress === "0x0000000000000000000000000000000000000000") {
     switch (networkId) {
-      case "bsc":
+      case "56":
         return "BNB";
       // Add more networks as needed
       default:
