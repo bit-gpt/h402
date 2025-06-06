@@ -2,10 +2,11 @@ import { evm } from "../../../shared/index.js";
 import { SCHEME } from "../index.js";
 import {
   VerifyResponse,
+  SettleResponse,
   PaymentRequirements,
   EvmPaymentPayload,
   EvmAuthorizationPayload,
-  EvmNativeTransferPayload, EvmTokenTransferPayload, EvmSignAndSendTransactionPayload,
+  EvmSignAndSendTransactionPayload,
 } from "../../../types";
 import {
   encodeFunctionData,
@@ -18,9 +19,10 @@ import {
   decodeEventLog,
   keccak256,
   toBytes,
-  Log, Hex,
+  Log,
+  Hex,
 } from "viem";
-import {h402Version} from "../../../index.js";
+import { h402Version } from "../../../index.js";
 
 const BLOCK_TIME = 2; // Average block time in seconds
 const SAFETY_BLOCKS = 3; // Number of blocks for safety margin
@@ -63,18 +65,6 @@ async function verify(
     switch (payload.payload.type) {
       case "authorization":
         return await verifyAuthorizationPayload(
-          client,
-          payload.payload,
-          paymentRequirements
-        );
-      case "nativeTransfer":
-        return await verifyNativeTransferPayload(
-          client,
-          payload.payload,
-          paymentRequirements
-        );
-      case "tokenTransfer":
-        return await verifyTokenTransferPayload(
           client,
           payload.payload,
           paymentRequirements
@@ -275,158 +265,6 @@ async function verifyAuthorizationPayload(
   return { isValid: true, type: "payload" };
 }
 
-async function verifyNativeTransferPayload(
-  client: PublicClient,
-  payload: EvmNativeTransferPayload,
-  paymentRequirements: PaymentRequirements
-): Promise<VerifyResponse> {
-  if (payload.transaction.value < paymentRequirements.amountRequired) {
-    return {
-      isValid: false,
-      errorMessage: "Insufficient transfer amount",
-    };
-  }
-
-  if (payload.transaction.to !== paymentRequirements.payToAddress) {
-    return {
-      isValid: false,
-      errorMessage: "Invalid recipient address",
-    };
-  }
-
-  try {
-    const gasEstimate = await client.estimateGas({
-      account: payload.transaction.from as Hex,
-      to: payload.transaction.to as Hex,
-      value: payload.transaction.value,
-    });
-
-    const maxGasAmount = await getMaxGasForChain(client);
-
-    if (gasEstimate > maxGasAmount) {
-      return {
-        isValid: false,
-        errorMessage: `Transaction would require too much gas (${gasEstimate} > ${maxGasAmount})`,
-      };
-    }
-
-    const balance = await client.getBalance({
-      address: payload.transaction.from as Hex,
-    });
-    if (balance < payload.transaction.value) {
-      return {
-        isValid: false,
-        errorMessage: "Insufficient balance including maximum gas cost",
-      };
-    }
-  } catch (error) {
-    return {
-      isValid: false,
-      errorMessage:
-        "Failed to estimate gas: " +
-        (error instanceof Error ? error.message : String(error)),
-    };
-  }
-
-  const hash = await client.getTransaction({ hash: payload.signature as Hex});
-  const recoveredAddress = await client.verifyMessage({
-    address: payload.transaction.from as Hex,
-    message: { raw: hash?.input || "0x" },
-    signature: payload.signature as Hex,
-  });
-
-  if (!recoveredAddress) {
-    return {
-      isValid: false,
-      errorMessage: "Invalid signature",
-    };
-  }
-
-  return { isValid: true, type: "payload" };
-}
-
-async function verifyTokenTransferPayload(
-  client: PublicClient,
-  payload: EvmTokenTransferPayload,
-  paymentRequirements: PaymentRequirements
-): Promise<VerifyResponse> {
-  if (payload.transaction.value < paymentRequirements.amountRequired) {
-    return {
-      isValid: false,
-      errorMessage: "Insufficient transfer amount",
-    };
-  }
-
-  if (payload.transaction.to !== paymentRequirements.payToAddress) {
-    return {
-      isValid: false,
-      errorMessage: "Invalid recipient address",
-    };
-  }
-
-  const balance = await client.readContract({
-    address: paymentRequirements.tokenAddress as `0x${string}`,
-    abi: [
-      {
-        name: "balanceOf",
-        type: "function",
-        inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "balance", type: "uint256" }],
-        stateMutability: "view",
-      },
-    ],
-    functionName: "balanceOf",
-    args: [payload.transaction.from as Hex],
-  });
-
-  if (balance < payload.transaction.value) {
-    return {
-      isValid: false,
-      errorMessage: "Insufficient token balance",
-    };
-  }
-
-  try {
-    const gasEstimate = await client.estimateGas({
-      account: payload.transaction.from as Hex,
-      to: paymentRequirements.tokenAddress as Hex,
-      data: payload.transaction.data as Hex,
-    });
-
-    const maxGasAmount = await getMaxGasForChain(client);
-
-    if (gasEstimate > maxGasAmount) {
-      return {
-        isValid: false,
-        errorMessage: `Transaction would require too much gas (${gasEstimate} > ${maxGasAmount})`,
-      };
-    }
-  } catch (error) {
-    return {
-      isValid: false,
-      errorMessage:
-        "Failed to estimate gas: " +
-        (error instanceof Error ? error.message : String(error)),
-    };
-  }
-
-  const hash = await client.getTransaction({ hash: payload.signature as Hex });
-  const recoveredAddress = await client.verifyMessage({
-    address: payload.transaction.from as Hex,
-    message: { raw: hash?.input || "0x" },
-    signature: payload.signature as Hex,
-  });
-
-  if (!recoveredAddress) {
-    return {
-      isValid: false,
-      errorMessage: "Invalid signature",
-    };
-  }
-
-  return { isValid: true, type: "payload" };
-}
-
 async function verifySignAndSendTransactionPayload(
   client: PublicClient,
   payload: EvmSignAndSendTransactionPayload,
@@ -608,18 +446,36 @@ async function settle(
   client: WalletClient & PublicActions,
   payload: EvmPaymentPayload,
   paymentRequirements: PaymentRequirements
-): Promise<{ txHash: string } | { errorMessage: string }> {
+): Promise<SettleResponse> {
   try {
     if (!validateBasePayload(payload, paymentRequirements)) {
-      return { errorMessage: "Invalid payload structure or version mismatch" };
+      return {
+        success: false,
+        transaction: "",
+        namespace: payload.namespace,
+        errorReason: "invalid_payload",
+        error: "Invalid payload structure or version mismatch",
+      };
     }
 
     if (!validateChain(payload, paymentRequirements)) {
-      return { errorMessage: "Invalid chain configuration" };
+      return {
+        success: false,
+        transaction: "",
+        namespace: payload.namespace,
+        errorReason: "invalid_network",
+        error: "Invalid chain configuration",
+      };
     }
 
     if (payload.payload.type === "signAndSendTransaction") {
-      return { errorMessage: "This payload type is not supported" };
+      return {
+        success: false,
+        transaction: "",
+        namespace: payload.namespace,
+        errorReason: "invalid_scheme",
+        error: "This payload type is not supported",
+      };
     }
 
     const txHash = await client.sendRawTransaction({
@@ -636,13 +492,31 @@ async function settle(
     });
 
     if (receipt.status === "success") {
-      return { txHash };
+      return {
+        success: true,
+        transaction: txHash,
+        namespace: payload.namespace,
+        payer:
+          payload.payload.type === "authorization"
+            ? payload.payload.authorization.from
+            : undefined,
+      };
     }
 
-    return { errorMessage: "Transaction failed" };
+    return {
+      success: false,
+      transaction: txHash,
+      namespace: payload.namespace,
+      errorReason: "invalid_transaction_state",
+      error: "Transaction failed",
+    };
   } catch (error) {
     return {
-      errorMessage: `Failed to settle payment: ${
+      success: false,
+      transaction: "",
+      namespace: payload.namespace,
+      errorReason: "unexpected_settle_error",
+      error: `Failed to settle payment: ${
         error instanceof Error ? error.message : String(error)
       }`,
     };

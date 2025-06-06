@@ -70,13 +70,12 @@ export default function EvmPaymentHandler({
 
   // Update payment status callbacks
   const handlePaymentSuccess = useCallback(
-    (paymentHeader: string, txHash: string) => {
+    (paymentHeader: string) => {
       console.log("[DEBUG] Payment sent and signed");
       console.log("[DEBUG] Payment header:", paymentHeader);
-      console.log("[DEBUG] Transaction hash:", txHash);
 
       // Call onSuccess immediately - the parent will handle facilitator verification
-      if (onSuccess) onSuccess(paymentHeader, txHash);
+      if (onSuccess) onSuccess(paymentHeader);
     },
     [onSuccess]
   );
@@ -164,7 +163,7 @@ function EvmPaymentProcessor({
   walletClient: any;
   connectedAddress: string;
   paymentRequirements?: any;
-  onSuccess: (paymentHeader: string, txHash: string) => void;
+  onSuccess: (paymentHeader: string) => void;
   onError: (error: Error) => void;
   onProcessing: () => void;
   paymentAttemptRef: React.RefObject<{ attemptInProgress: boolean }>;
@@ -230,27 +229,8 @@ function EvmPaymentProcessor({
           h402Version,
         finalPaymentRequirements,
         );
-
         console.log("[DEBUG] createPayment succeeded");
-
-        // Extract transaction hash from payment header
-        let txHash = "";
-
-        if (
-          paymentHeader &&
-          typeof paymentHeader === "string" &&
-          paymentHeader.includes(":")
-        ) {
-          const hashPart = paymentHeader.split(":").pop();
-          if (hashPart) {
-            txHash = hashPart;
-          }
-        }
-
-        console.log("[DEBUG] Payment completed successfully");
-
-        // Call success callback
-        onSuccess(paymentHeader, txHash);
+        onSuccess(paymentHeader);
       } catch (err) {
         console.error("[DEBUG] Payment error:", err);
 

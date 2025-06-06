@@ -1,7 +1,18 @@
-import { address, createSolanaRpc, GetTransactionApi } from "@solana/kit";
-import {PaymentRequirements, SolanaPaymentPayload} from "../../../types";
-import { SettleResponse, VerifyResponse } from "../../../types";
+import {
+  address,
+  Base64EncodedWireTransaction,
+  createSolanaRpc,
+  GetTransactionApi,
+} from "@solana/kit";
+import {
+  PaymentRequirements,
+  SettleResponse,
+  SolanaPaymentPayload,
+  SolanaSignTransactionPayload,
+  VerifyResponse,
+} from "../../../types";
 import { solana } from "../../../shared/index.js";
+import { getFacilitator } from "../../../shared/next";
 
 /**
  * Verify a Solana payment for the exact scheme
@@ -12,11 +23,12 @@ export async function verify(
   payload: SolanaPaymentPayload,
   paymentRequirements: PaymentRequirements
 ): Promise<VerifyResponse> {
+  console.log("VERIFY");
   if (paymentRequirements.namespace !== "solana") {
     return {
       isValid: false,
       errorMessage: 'Payment details must use the "solana" namespace',
-      invalidReason: 'invalid_payment_requirements',
+      invalidReason: "invalid_payment_requirements",
     };
   }
 
@@ -24,48 +36,64 @@ export async function verify(
     console.log("[DEBUG-SOLANA-VERIFY] Starting Solana payment verification", {
       payloadType: payload.payload.type,
       networkId: paymentRequirements.networkId,
-      resource: paymentRequirements.resource,
+      tokenAddress: paymentRequirements.tokenAddress,
+      amountRequired: paymentRequirements.amountRequired,
     });
 
-    // Create RPC client for Solana cluster
-    const rpc = createSolanaRpc(
-      solana.getClusterUrl(paymentRequirements.networkId)
-    );
-
-    // Get transaction signature based on payload type
-    let txSignature: string;
-
     switch (payload.payload.type) {
-      case "nativeTransfer":
-      case "tokenTransfer":
-        txSignature = payload.payload.signature;
-        break;
       case "signAndSendTransaction":
         // For signAndSendTransaction, verify both signature and transaction match
-        if (
-          !payload.payload.signature ||
-          !payload.payload.transaction?.signature
-        ) {
+        if (!payload.payload.signature) {
           return {
             isValid: false,
             errorMessage:
               "Missing required signature in signAndSendTransaction payload",
-            invalidReason: 'invalid_exact_solana_payload_signature',
+            invalidReason: "invalid_exact_solana_payload_signature",
           };
         }
-        if (
-          payload.payload.signature !== payload.payload.transaction.signature
-        ) {
+
+        // Fetch the transaction
+        const txResponse = await solana.fetchTransaction(
+          payload.payload.signature,
+          { waitForConfirmation: true }
+        );
+
+        if (!txResponse) {
           return {
             isValid: false,
-            errorMessage: "Signature mismatch between payload and transaction",
+            errorMessage: "Transaction not found",
           };
         }
-        txSignature = payload.payload.signature;
-        break;
+
+        // Verify transaction is confirmed
+        if (!txResponse.meta || txResponse.meta.err) {
+          return {
+            isValid: false,
+            errorMessage: "Transaction failed or not confirmed",
+          };
+        }
+
+        // Verify payment amount and recipient
+        const isValidPayment = await verifyPaymentAmount(
+          txResponse,
+          paymentRequirements
+        );
+
+        if (!isValidPayment.isValid) {
+          return isValidPayment;
+        }
+
+        return {
+          isValid: true,
+          txHash: payload.payload.signature,
+          type: "transaction",
+        };
       case "signTransaction":
-        txSignature = payload.payload.signedTransaction;
-        break;
+        return {
+          isValid: true,
+          txHash: payload.payload.signature,
+          type: "payload", // type payload will trigger settle function
+        };
       case "signMessage":
         return {
           isValid: false,
@@ -80,47 +108,6 @@ export async function verify(
           }`,
         };
     }
-
-    console.log("[DEBUG-SOLANA-VERIFY] Fetching transaction", { txSignature });
-
-    // Fetch the transaction
-    const txResponse = await solana.fetchTransaction(
-      txSignature,
-      paymentRequirements.networkId,
-      { waitForConfirmation: true }
-    );
-
-    if (!txResponse) {
-      return {
-        isValid: false,
-        errorMessage: "Transaction not found",
-      };
-    }
-
-    // Verify transaction is confirmed
-    if (!txResponse.meta || txResponse.meta.err) {
-      return {
-        isValid: false,
-        errorMessage: "Transaction failed or not confirmed",
-      };
-    }
-
-    // Verify payment amount and recipient
-    const isValidPayment = await verifyPaymentAmount(
-      txResponse,
-      paymentRequirements
-    );
-
-    if (!isValidPayment.isValid) {
-      return isValidPayment;
-    }
-
-    // All checks passed
-    return {
-      isValid: true,
-      txHash: txSignature,
-      type: "transaction",
-    };
   } catch (error) {
     return {
       isValid: false,
@@ -238,48 +225,43 @@ export async function settle(
   payload: SolanaPaymentPayload,
   paymentRequirements: PaymentRequirements
 ): Promise<SettleResponse> {
-  // For broadcast transactions, settling is the same as verifying
-  const verifyResult = await verify(payload, paymentRequirements);
+  console.log("SETTLE");
+  // re-verify to ensure the payment is still valid
+  const valid = await verify(payload, paymentRequirements);
 
-  if (!verifyResult.isValid) {
+  if (!valid.isValid) {
     return {
       success: false,
-      transaction: verifyResult.txHash!,
-      error: verifyResult.errorMessage,
+      transaction: "",
+      errorReason: valid.invalidReason ?? "invalid_scheme", //`Payment is no longer valid: ${valid.invalidReason}`,
+      error: valid.errorMessage,
     };
   }
 
-  // Get transaction signature based on payload type
-  let txSignature: string;
+  if (payload.payload.type === "signAndSendTransaction") {
+    return {
+      success: false,
+      transaction: "",
+      error: "This payload type is not supported",
+    };
+  }
 
-  switch (payload.payload.type) {
-    case "nativeTransfer":
-    case "tokenTransfer":
-      txSignature = payload.payload.signature;
-      break;
-    case "signAndSendTransaction":
-      txSignature = payload.payload.signature;
-      break;
-    case "signTransaction":
-      txSignature = payload.payload.signedTransaction;
-      break;
-    case "signMessage":
-      return {
-        success: false,
-        transaction: verifyResult.txHash!,
-        error: "SignMessage payloads cannot be settled as transactions",
-      };
-    default:
-      return {
-        success: false,
-        transaction: verifyResult.txHash!,
-        error: `Unsupported payload type: ${(payload.payload as any).type}`,
-      };
+  const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
+  const response = await rpc
+    .sendTransaction(
+      (payload.payload as SolanaSignTransactionPayload)
+        .transaction as Base64EncodedWireTransaction,
+      { encoding: "base64" }
+    )
+    .send();
+  console.log("[DEBUG-SOLANA-SETTLE] txHash", response);
+  if (response !== payload.payload.signature) {
+    throw new Error("Something went wrong");
   }
 
   return {
     success: true,
-    transaction: txSignature,
+    transaction: payload.payload.signature,
     namespace: paymentRequirements.namespace,
   };
 }

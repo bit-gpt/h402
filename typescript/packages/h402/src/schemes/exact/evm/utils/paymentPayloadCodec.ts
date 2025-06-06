@@ -1,9 +1,10 @@
-import {safeBase64Decode, safeBase64Encode} from "../../../../shared/base64.js";
-import {EvmPaymentPayload} from "../../../../types";
+import {
+  safeBase64Decode,
+  safeBase64Encode,
+} from "../../../../shared/base64.js";
+import { EvmPaymentPayload } from "../../../../types";
 
-function encodePaymentPayload(
-  payment: EvmPaymentPayload
-): string {
+function encodePaymentPayload(payment: EvmPaymentPayload): string {
   const safe = {
     ...payment,
     payload: {
@@ -14,13 +15,6 @@ function encodePaymentPayload(
           value: payment.payload.authorization.value.toString(),
           validAfter: payment.payload.authorization.validAfter.toString(),
           validBefore: payment.payload.authorization.validBefore.toString(),
-        },
-      }),
-      ...((payment.payload.type === "nativeTransfer" ||
-        payment.payload.type === "tokenTransfer") && {
-        transaction: {
-          ...payment.payload.transaction,
-          value: payment.payload.transaction.value.toString(),
         },
       }),
     },
@@ -43,13 +37,6 @@ function decodePaymentPayload(payment: string): EvmPaymentPayload {
           value: BigInt(parsed.payload.authorization.value),
           validAfter: BigInt(parsed.payload.authorization.validAfter),
           validBefore: BigInt(parsed.payload.authorization.validBefore),
-        },
-      }),
-      ...((parsed.payload.type === "nativeTransfer" ||
-        parsed.payload.type === "tokenTransfer") && {
-        transaction: {
-          ...parsed.payload.transaction,
-          value: BigInt(parsed.payload.transaction.value),
         },
       }),
     },
@@ -83,36 +70,6 @@ function validatePaymentPayload(obj: EvmPaymentPayload): EvmPaymentPayload {
         throw new Error("Invalid authorization payload values");
       }
       break;
-
-    case "nativeTransfer":
-      if (
-        !obj.payload.transaction ||
-        typeof obj.payload.transaction.value !== "bigint" ||
-        typeof obj.payload.transaction.from !== "string" ||
-        typeof obj.payload.transaction.to !== "string" ||
-        typeof obj.payload.transaction.nonce !== "number" ||
-        !obj.payload.signature ||
-        !obj.payload.signature.startsWith("0x")
-      ) {
-        throw new Error("Invalid native transfer payload values");
-      }
-      break;
-
-    case "tokenTransfer":
-      if (
-        !obj.payload.transaction ||
-        typeof obj.payload.transaction.value !== "bigint" ||
-        typeof obj.payload.transaction.from !== "string" ||
-        typeof obj.payload.transaction.to !== "string" ||
-        typeof obj.payload.transaction.nonce !== "number" ||
-        typeof obj.payload.transaction.data !== "string" ||
-        !obj.payload.signature ||
-        !obj.payload.signature.startsWith("0x")
-      ) {
-        throw new Error("Invalid token transfer payload values");
-      }
-      break;
-
     case "signAndSendTransaction":
       if (
         !obj.payload.transactionHash ||

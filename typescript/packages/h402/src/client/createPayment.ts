@@ -10,6 +10,7 @@ import { PaymentClient } from "../types";
  *
  * @param {PaymentRequirements} paymentRequirements - The details of the payment to be created
  * @param {PaymentClient} client - The client object containing chain-specific clients
+ * @param h402Version
  * @returns {Promise<string>} A promise that resolves to the payment header
  *
  * @throws {Error} If payment details namespace is missing
@@ -96,18 +97,6 @@ export async function createPaymentHeader(
       if (!client.solanaClient.publicKey) {
         throw new Error(
           "solanaClient.publicKey is required for Solana payments"
-        );
-      }
-
-      if (!client.solanaClient.signAndSendTransaction) {
-        throw new Error(
-          "solanaClient.signAndSendTransaction is required for Solana payments"
-        );
-      }
-
-      if (!solana.isSolanaSupported(paymentRequirements.networkId)) {
-        throw new Error(
-          `Unsupported Solana Network: ${paymentRequirements.networkId}`
         );
       }
 

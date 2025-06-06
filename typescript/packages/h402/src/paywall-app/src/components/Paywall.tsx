@@ -138,29 +138,25 @@ export default function PaymentUI({ paymentRequirements }: PaymentUIProps) {
   // Event handlers
   const handlePaymentSuccess = async (
     paymentHeader: string,
-    txHash: string
   ) => {
-    console.log("Payment successful:", paymentHeader);
-    console.log("Transaction hash:", txHash);
-
     // Set payment status to success
     setPaymentStatus("success");
-    
+
     // According to the protocol, we need to make the original request again
     // but include the payment header this time
-    
+
     console.log("Completing payment flow...");
-    
+
     // The protocol requires using the X-PAYMENT header
     // Since we can't set headers directly with normal navigation,
     // we need to use fetch and then handle the response
-    
+
     try {
       // Get the current URL
       const currentUrl = window.location.pathname + window.location.search;
-      
+
       console.log("Making request with X-PAYMENT header to", currentUrl);
-      
+
       // Make the request with the proper X-PAYMENT header
       const response = await fetch(currentUrl, {
         method: 'GET',
@@ -168,17 +164,17 @@ export default function PaymentUI({ paymentRequirements }: PaymentUIProps) {
           'X-PAYMENT': paymentHeader
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
       }
-      
+
       // Get the response content and replace the current page
       const html = await response.text();
       document.open();
       document.write(html);
       document.close();
-      
+
       console.log("Successfully completed the payment flow");
     } catch (error) {
       console.error("Error completing payment flow:", error);

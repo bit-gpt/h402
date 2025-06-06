@@ -152,7 +152,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       const response = NextResponse.next();
       let responseData;
 
-      console.log("Settle paymentType", paymentType);
+      console.log("[Next Middleware] Settle paymentType", paymentType);
 
       if (paymentType === "payload" && selectedRequirement) {
         // Needs settlement

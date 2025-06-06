@@ -1,5 +1,5 @@
-import { erc20Abi, type PublicActions } from "viem";
-import { getClient } from "./clients.js";
+import { erc20Abi } from "viem";
+import { getPublicClient } from "../../types/shared/evm";
 
 /**
  * Get the number of decimals for a token
@@ -8,8 +8,7 @@ import { getClient } from "./clients.js";
  */
 export async function getTokenDecimals(
   tokenAddress: string,
-  networkId: string = "bsc",
-  client?: PublicActions
+  networkId: string = "56"
 ): Promise<number> {
   // Special case for native token (0x0 address)
   if (tokenAddress === "0x0000000000000000000000000000000000000000") {
@@ -17,7 +16,7 @@ export async function getTokenDecimals(
   }
 
   try {
-    const evmClient = getClient(networkId, client);
+    const evmClient = getPublicClient(networkId);
     if (!evmClient) {
       throw new Error(`Unsupported network: ${networkId}`);
     }
@@ -42,13 +41,12 @@ export async function getTokenDecimals(
  */
 export async function getTokenSymbol(
   tokenAddress: string,
-  networkId: string = "bsc",
-  client?: PublicActions
+  networkId: string = "56"
 ): Promise<string | undefined> {
   // Special case for native token (0x0 address)
   if (tokenAddress === "0x0000000000000000000000000000000000000000") {
     switch (networkId) {
-      case "bsc":
+      case "56":
         return "BNB";
       // Add more networks as needed
       default:
@@ -57,7 +55,7 @@ export async function getTokenSymbol(
   }
 
   try {
-    const evmClient = getClient(networkId, client);
+    const evmClient = getPublicClient(networkId);
     if (!evmClient) {
       throw new Error(`Unsupported network: ${networkId}`);
     }

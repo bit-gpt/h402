@@ -54,7 +54,7 @@ export type PaymentStatus =
 export interface PaymentButtonProps {
   amount: string;
   paymentRequirements?: any;
-  onSuccess?: (paymentHeader: string, txHash: string) => void;
+  onSuccess?: (paymentHeader: string) => void;
   onError?: (error: Error) => void;
   paymentStatus: PaymentStatus;
   setPaymentStatus: (paymentStatus: PaymentStatus) => void;

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useWalletAccountTransactionSendingSigner } from "@solana/react";
-import { useConnect, type UiWalletAccount } from "@wallet-standard/react";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {useWalletAccountTransactionSendingSigner, useWalletAccountTransactionSigner} from "@solana/react";
+import {type UiWalletAccount, useConnect} from "@wallet-standard/react";
 import {createPaymentHeader, h402Version} from "@bit-gpt/h402";
-import type { PaymentButtonProps } from "@/types/payment";
+import type {PaymentButtonProps} from "@/types/payment";
 import PaymentButtonUI from "@/components/PaymentButton";
 
 /**
@@ -24,7 +24,7 @@ export default function SolanaPaymentHandler({
     useState<UiWalletAccount | null>(null);
 
   // Simplified ref to track payment attempts
-  const paymentAttemptRef = useRef({ attemptInProgress: false });
+  const paymentAttemptRef = useRef({attemptInProgress: false});
 
   // Get the wallet connection hook
   const [isConnecting, connect] = useConnect(wallet);
@@ -74,17 +74,16 @@ export default function SolanaPaymentHandler({
 
   // Update payment status callbacks
   const handlePaymentSuccess = useCallback(
-    (paymentHeader: string, txHash: string) => {
-      console.log("[DEBUG] Payment sent and signed");
+    (paymentHeader: string) => {
+      console.log("[DEBUG] Payment signed and maybe sent");
       console.log("[DEBUG] Payment header:", paymentHeader);
-      console.log("[DEBUG] Transaction hash:", txHash);
 
       // Keep the processing state - we'll let the parent component set success
       // after facilitator verifies the transaction
 
       // Call onSuccess immediately - the parent will handle facilitator verification
       // Pass setStatus so the parent can update our status after facilitator verification
-      if (onSuccess) onSuccess(paymentHeader, txHash);
+      if (onSuccess) onSuccess(paymentHeader);
     },
     [onSuccess]
   );
@@ -92,7 +91,7 @@ export default function SolanaPaymentHandler({
   const handlePaymentError = useCallback(
     (err: Error) => {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.log("[DEBUG] Payment error", { errMsg });
+      console.log("[DEBUG] Payment error", {errMsg});
 
       // Check if this is a user cancellation
       const isUserCancellation =
@@ -176,7 +175,7 @@ function SolanaPaymentProcessor({
 }: {
   account: UiWalletAccount;
   paymentRequirements?: any;
-  onSuccess: (paymentHeader: string, txHash: string) => void;
+  onSuccess: (paymentHeader: string) => void;
   onError: (error: Error) => void;
   onProcessing: () => void;
   paymentAttemptRef: React.RefObject<{ attemptInProgress: boolean }>;
@@ -185,6 +184,7 @@ function SolanaPaymentProcessor({
     account,
     "solana:mainnet"
   );
+  const transactionSigner = useWalletAccountTransactionSigner(account, "solana:mainnet")
 
   // Debug - Track if this component has already attempted a payment
   const hasAttemptedRef = useRef(false);
@@ -217,61 +217,30 @@ function SolanaPaymentProcessor({
         const signAndSendTransactionFn =
           transactionSendingSigner?.signAndSendTransactions;
 
+        const signTransactionFn =
+          transactionSigner?.modifyAndSignTransactions;
+
         const paymentClients = {
           solanaClient: {
             publicKey: account.address,
             signAndSendTransaction: signAndSendTransactionFn,
+            signTransaction: signTransactionFn,
           },
         };
 
-        let paymentHeader;
-        try {
-          // Create payment using the h402 payment library
-          // At this point the user will be prompted to approve the transaction
-          console.log("[DEBUG] Calling createPayment now...");
-          paymentHeader = await createPaymentHeader(
-            paymentClients,
+        // Create payment using the h402 payment library
+        // At this point the user will be prompted to approve the transaction
+        console.log("[DEBUG Solana Payment Handler] Calling createPayment now...");
+        const paymentHeader = await createPaymentHeader(
+          paymentClients,
           h402Version,
           paymentRequirements,
-          );
-          console.log("[DEBUG] createPayment completed successfully");
-
-          // If we get here, it means the user has approved the transaction
-          // Now we can set the processing state as we wait for confirmation
-          onProcessing();
-        } catch (error) {
-          const paymentError = error as Error;
-          throw paymentError;
-        }
-
-        // We need to extract the transaction hash from the payment header
-        // The payment header contains the transaction signature
-        let txHash = "";
-
-        // Parse the payment header as base64 encoded JSON
-        if (paymentHeader && typeof paymentHeader === "string") {
-          try {
-            const decodedHeader = atob(paymentHeader);
-            const payloadObj = JSON.parse(decodedHeader);
-            // Extract signature from the payload if available
-            if (payloadObj && payloadObj.payload) {
-              if (payloadObj.payload.signature) {
-                txHash = payloadObj.payload.signature;
-              } else if (
-                payloadObj.payload.transaction &&
-                payloadObj.payload.transaction.signature
-              ) {
-                txHash = payloadObj.payload.transaction.signature;
-              }
-            }
-          } catch (error) {
-            console.log("[DEBUG] Error processing payment header:", error);
-            console.log("[DEBUG] Error type:", typeof error);
-            console.log("[DEBUG] Error message:", String(error));
-          }
-        }
-        // Call success callback
-        onSuccess(paymentHeader, txHash);
+        );
+        console.log("[DEBUG Solana Payment Handler] createPayment completed successfully");
+        // If we get here, it means the user has approved the transaction
+        // Now we can set the processing state as we wait for confirmation
+        onProcessing();
+        onSuccess(paymentHeader);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         // Check for facilitator unavailability
@@ -311,15 +280,7 @@ function SolanaPaymentProcessor({
     return () => {
       paymentAttemptRef.current.attemptInProgress = false;
     };
-  }, [
-    account,
-    paymentRequirements,
-    transactionSendingSigner,
-    onSuccess,
-    onError,
-    onProcessing,
-    paymentAttemptRef,
-  ]);
+  }, [account, paymentRequirements, transactionSendingSigner, onSuccess, onError, onProcessing, paymentAttemptRef, transactionSigner?.modifyAndSignTransactions]);
 
   // This component doesn't render anything
   return null;

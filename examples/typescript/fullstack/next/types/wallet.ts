@@ -1,32 +1,3 @@
-// types/wallet.ts
-
-/**
- * Wallet option for UI display
- */
-export interface WalletOption {
-  id: string;
-  name: string;
-  icon: string;
-}
-
-/**
- * Wallet connection status
- */
-export type WalletConnectionStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "error";
-
-/**
- * Wallet connection error
- */
-export interface WalletConnectionError {
-  code: string;
-  message: string;
-  originalError?: unknown;
-}
-
 /**
  * Common wallet account interface
  * Abstracts over different wallet types
