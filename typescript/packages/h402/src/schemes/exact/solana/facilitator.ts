@@ -36,13 +36,6 @@ export async function verify(
     });
 
     switch (payload.payload.type) {
-      case "nativeTransfer":
-      case "tokenTransfer":
-        return {
-          isValid: true,
-          txHash: payload.payload.signature,
-          type: "transaction",
-        };
       case "signAndSendTransaction":
         // For signAndSendTransaction, verify both signature and transaction match
         if (!payload.payload.signature) {

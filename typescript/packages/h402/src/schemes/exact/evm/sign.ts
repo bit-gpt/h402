@@ -1,11 +1,9 @@
 import {
   EvmAuthorizationParameters,
-  EvmNativeTransferParameters,
   EvmSignAndSendTransactionParameters,
-  EvmTokenTransferParameters,
-  PaymentRequirements
+  PaymentRequirements,
 } from "../../../types";
-import {WalletClient, PublicActions, Hex} from "viem";
+import { WalletClient, PublicActions, Hex } from "viem";
 import { evm } from "../../../shared/index.js";
 import { encodeFunctionData } from "viem";
 
@@ -21,98 +19,6 @@ const ERC20_ABI = [
     stateMutability: "nonpayable",
   },
 ] as const;
-
-async function signNativeTransfer(
-  client: WalletClient & PublicActions,
-  {
-    from,
-    to,
-    value,
-  }: Pick<EvmNativeTransferParameters, "from" | "to" | "value">,
-  {
-    networkId,
-    resource,
-    tokenAddress,
-  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
-): Promise<
-  | { type: "signature"; signature: Hex; nonce: number }
-  | { type: "fallback"; signature: Hex; txHash: Hex }
-> {
-  try {
-    const request = await client.prepareTransactionRequest({
-      account: from as Hex,
-      to: to as Hex,
-      value,
-      chain: evm.getChain(networkId),
-    });
-
-    const signature = await client.signTransaction({
-      ...request,
-      account: from as Hex,
-    });
-
-    return { type: "signature", signature, nonce: request.nonce };
-  } catch (error) {
-    console.warn(
-      "Failed to sign native transfer, falling back to signAndSendTransaction"
-    );
-    const result = await signAndSendTransaction(
-      client,
-      { from, to, value },
-      { networkId, resource, tokenAddress }
-    );
-    return { type: "fallback", ...result };
-  }
-}
-
-async function signTokenTransfer(
-  client: WalletClient & PublicActions,
-  {
-    from,
-    to,
-    value,
-  }: Pick<EvmTokenTransferParameters, "from" | "to" | "value">,
-  {
-    tokenAddress,
-    networkId,
-    resource,
-  }: Pick<PaymentRequirements, "tokenAddress" | "networkId" | "resource">
-): Promise<
-  | { type: "signature"; signature: Hex; nonce: number; data: Hex }
-  | { type: "fallback"; signature: Hex; txHash: Hex }
-> {
-  try {
-    const data = encodeFunctionData({
-      abi: ERC20_ABI,
-      functionName: "transfer",
-      args: [to as Hex, value],
-    });
-
-    const request = await client.prepareTransactionRequest({
-      account: from as Hex,
-      to: tokenAddress?.toLowerCase() as Hex,
-      data,
-      chain: evm.getChain(networkId),
-    });
-
-    const signature = await client.signTransaction({
-      ...request,
-      account: from as Hex,
-    });
-
-    return { type: "signature", signature, nonce: request.nonce, data };
-  } catch (error) {
-    console.warn(
-      "Failed to sign token transfer, falling back to signAndSendTransaction"
-    );
-    const result = await signAndSendTransaction(
-      client,
-      { from, to, value },
-      { networkId, resource, tokenAddress }
-    );
-    return { type: "fallback", ...result };
-  }
-}
 
 async function signAuthorization(
   client: WalletClient & PublicActions,
@@ -221,7 +127,6 @@ async function signAndSendTransaction(
   }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
 ): Promise<{ signature: Hex; txHash: Hex }> {
   try {
-
     const signature = await client.signMessage({
       account: from as Hex,
       message: resource ?? `402 signature ${Date.now()}`,
@@ -283,4 +188,4 @@ async function signAndSendTransaction(
   }
 }
 
-export { signNativeTransfer, signTokenTransfer, signAuthorization };
+export { signAuthorization, signAndSendTransaction };

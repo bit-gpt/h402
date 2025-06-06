@@ -1,14 +1,7 @@
 import { WalletClient, PublicActions } from "viem";
-import {
-  signAuthorization,
-  signNativeTransfer,
-  utils,
-  signTokenTransfer,
-} from "./index.js";
+import { signAndSendTransaction, signAuthorization, utils } from "./index.js";
 import { evm } from "../../../shared/index.js";
-import {
-  PaymentRequirements, EvmPaymentPayload,
-} from "../../../types";
+import { PaymentRequirements, EvmPaymentPayload } from "../../../types";
 import { Hex } from "viem";
 
 const TRANSFER_WITH_AUTHORIZATION_ABI = [
@@ -43,29 +36,18 @@ async function _createPayment(
   };
 
   if (paymentRequirements.tokenAddress === evm.ZERO_ADDRESS) {
-    const result = await signNativeTransfer(
+    const result = await signAndSendTransaction(
       client,
       { from, to, value },
       paymentRequirements
     );
 
-    if (result.type === "fallback") {
-      return {
-        ...basePayment,
-        payload: {
-          type: "signAndSendTransaction",
-          signedMessage: result.signature,
-          transactionHash: result.txHash,
-        },
-      };
-    }
-
     return {
       ...basePayment,
       payload: {
-        type: "nativeTransfer",
-        signature: result.signature,
-        transaction: { from, to, value, nonce: result.nonce },
+        type: "signAndSendTransaction",
+        signedMessage: result.signature,
+        transactionHash: result.txHash,
       },
     };
   }
@@ -115,35 +97,18 @@ async function _createPayment(
     };
   }
 
-  const result = await signTokenTransfer(
+  const result = await signAndSendTransaction(
     client,
     { from, to, value },
     paymentRequirements
   );
 
-  if (result.type === "fallback") {
-    return {
-      ...basePayment,
-      payload: {
-        type: "signAndSendTransaction",
-        signedMessage: result.signature,
-        transactionHash: result.txHash,
-      },
-    };
-  }
-
   return {
     ...basePayment,
     payload: {
-      type: "tokenTransfer",
-      signature: result.signature,
-      transaction: {
-        from,
-        to,
-        value,
-        nonce: result.nonce,
-        data: result.data,
-      },
+      type: "signAndSendTransaction",
+      signedMessage: result.signature,
+      transactionHash: result.txHash,
     },
   };
 }
@@ -161,7 +126,11 @@ async function createPayment(
   if (!paymentRequirements.scheme) {
     paymentRequirementsWithDefaults.scheme = `exact`;
   }
-  const payment = await _createPayment(client, h402Version, paymentRequirementsWithDefaults);
+  const payment = await _createPayment(
+    client,
+    h402Version,
+    paymentRequirementsWithDefaults
+  );
   return utils.encodePaymentPayload(payment);
 }
 
