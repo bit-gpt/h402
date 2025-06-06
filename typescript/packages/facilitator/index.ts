@@ -21,21 +21,12 @@ app.use(express.json());
 app.post("/verify", async (req: any, res: any) => {
   try {
     console.log("[DEBUG-FACILITATOR] Making request to facilitator endpoint: verify");
-    console.log("[DEBUG-FACILITATOR] Making request to facilitator payload:", req.body);
 
     const { payload, paymentRequirements } = req.body;
 
     if (!payload || !paymentRequirements) {
       return res.status(400).json({ error: "payload and paymentRequirements required" });
     }
-
-    // Add more detailed logging before verification
-    console.log(
-      "[DEBUG-FACILITATOR] About to verify payment with payload length:",
-      payload?.length || 0,
-      "and requirements:",
-      JSON.stringify(paymentRequirements),
-    );
 
     const decoded = safeBase64Decode(payload);
     const decodedPayload = JSON.parse(decoded);
@@ -78,7 +69,6 @@ app.post("/verify", async (req: any, res: any) => {
 app.post("/settle", async (req: any, res: any) => {
   try {
     console.log("[DEBUG-FACILITATOR] Making request to facilitator endpoint: settle");
-    console.log("[DEBUG-FACILITATOR] Making request to facilitator payload:", req.body);
 
     const { payload, paymentRequirements } = req.body;
 

@@ -1,30 +1,24 @@
-import {toJsonSafe} from "../shared";
-import {FacilitatorConfig, FacilitatorResponse, PaymentRequirements, SettleResponse, VerifyResponse,} from "../types";
+import { toJsonSafe } from "../shared";
+import {
+  FacilitatorConfig,
+  FacilitatorResponse,
+  PaymentRequirements,
+  SettleResponse,
+  VerifyResponse,
+} from "../types";
 
 export type CreateHeaders = () => Promise<{
   verify: Record<string, string>;
   settle: Record<string, string>;
 }>;
 
-export function useFacilitator({url}: FacilitatorConfig) {
+export function useFacilitator({ url }: FacilitatorConfig) {
   async function makeRequest<T>(
     endpoint: string,
     payload: string,
-    paymentRequirements: PaymentRequirements,
+    paymentRequirements: PaymentRequirements
   ): Promise<FacilitatorResponse<T>> {
     console.log("[DEBUG-PAYMENT-FLOW] Making request to facilitator:", url);
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Making request to facilitator endpoint:",
-      endpoint,
-    );
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Making request to facilitator payload:",
-      payload,
-    );
-    console.log(
-      "[DEBUG-PAYMENT-FLOW] Making request to facilitator payment requirements:",
-      paymentRequirements,
-    );
 
     try {
       const response = await fetch(`${url}/${endpoint}`, {
@@ -40,18 +34,22 @@ export function useFacilitator({url}: FacilitatorConfig) {
 
       if (!response.ok) {
         const error = await response.text().catch(() => response.statusText);
-        return {data: null, error: `Failed to ${endpoint} payment: ${error}`};
+        return { data: null, error: `Failed to ${endpoint} payment: ${error}` };
       }
 
       const result = (await response.json()) as FacilitatorResponse<T>;
-      return {data: result.data, error: result.error};
+      return { data: result.data, error: result.error };
     } catch (error) {
       console.error(
-        `[ERROR-PAYMENT-FLOW] Facilitator connection error: ${error instanceof Error ? error.message : String(error)}`,
+        `[ERROR-PAYMENT-FLOW] Facilitator connection error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return {
         data: null,
-        error: `Facilitator service unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Facilitator service unavailable: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       };
     }
   }
