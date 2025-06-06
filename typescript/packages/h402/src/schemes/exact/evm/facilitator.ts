@@ -2,6 +2,7 @@ import { evm } from "../../../shared/index.js";
 import { SCHEME } from "../index.js";
 import {
   VerifyResponse,
+  SettleResponse,
   PaymentRequirements,
   EvmPaymentPayload,
   EvmAuthorizationPayload,
@@ -608,18 +609,36 @@ async function settle(
   client: WalletClient & PublicActions,
   payload: EvmPaymentPayload,
   paymentRequirements: PaymentRequirements
-): Promise<{ txHash: string } | { errorMessage: string }> {
+): Promise<SettleResponse> {
   try {
     if (!validateBasePayload(payload, paymentRequirements)) {
-      return { errorMessage: "Invalid payload structure or version mismatch" };
+      return { 
+        success: false, 
+        transaction: "", 
+        namespace: payload.namespace,
+        errorReason: "invalid_payload",
+        error: "Invalid payload structure or version mismatch" 
+      };
     }
 
     if (!validateChain(payload, paymentRequirements)) {
-      return { errorMessage: "Invalid chain configuration" };
+      return { 
+        success: false, 
+        transaction: "", 
+        namespace: payload.namespace,
+        errorReason: "invalid_network",
+        error: "Invalid chain configuration" 
+      };
     }
 
     if (payload.payload.type === "signAndSendTransaction") {
-      return { errorMessage: "This payload type is not supported" };
+      return { 
+        success: false, 
+        transaction: "", 
+        namespace: payload.namespace,
+        errorReason: "invalid_scheme",
+        error: "This payload type is not supported" 
+      };
     }
 
     const txHash = await client.sendRawTransaction({
@@ -636,15 +655,30 @@ async function settle(
     });
 
     if (receipt.status === "success") {
-      return { txHash };
+      return { 
+        success: true, 
+        transaction: txHash, 
+        namespace: payload.namespace,
+        payer: payload.payload.type === 'authorization' ? payload.payload.authorization.from : 
+               payload.payload.type === 'nativeTransfer' || payload.payload.type === 'tokenTransfer' ? 
+               payload.payload.transaction.from : undefined
+      };
     }
 
-    return { errorMessage: "Transaction failed" };
+    return { 
+      success: false, 
+      transaction: txHash, 
+      namespace: payload.namespace,
+      errorReason: "invalid_transaction_state",
+      error: "Transaction failed" 
+    };
   } catch (error) {
     return {
-      errorMessage: `Failed to settle payment: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      success: false,
+      transaction: "",
+      namespace: payload.namespace,
+      errorReason: "unexpected_settle_error",
+      error: `Failed to settle payment: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
