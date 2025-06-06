@@ -63,9 +63,7 @@ export async function parsePaymentRequirementsForAmount(
 
         // Create an array to hold our fetch promises
         if (needDecimals) {
-          fetchPromises.push(
-            solana.getTokenDecimals(details.tokenAddress)
-          );
+          fetchPromises.push(solana.getTokenDecimals(details.tokenAddress));
         }
 
         if (needSymbol) {
@@ -183,7 +181,7 @@ export async function parsePaymentRequirementsForAmount(
     // Fetch token metadata using shared functions
     const [decimals] = await Promise.all([
       details.tokenDecimals ??
-        evm.getTokenDecimals(details.tokenAddress, details.networkId, client),
+        evm.getTokenDecimals(details.tokenAddress, details.networkId),
     ]);
 
     return {
