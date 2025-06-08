@@ -10,8 +10,6 @@ import {
 } from "../../../types";
 import {
   encodeFunctionData,
-  createPublicClient,
-  http,
   WalletClient,
   PublicActions,
   PublicClient,
@@ -19,7 +17,6 @@ import {
   decodeEventLog,
   keccak256,
   toBytes,
-  Log,
   Hex,
 } from "viem";
 import { h402Version } from "../../../index.js";
@@ -482,12 +479,7 @@ async function settle(
       serializedTransaction: payload.payload.signature as Hex,
     });
 
-    const publicClient = createPublicClient({
-      chain: evm.getChain(paymentRequirements.networkId),
-      transport: http(),
-    });
-
-    const receipt = await publicClient.waitForTransactionReceipt({
+    const receipt = await client.waitForTransactionReceipt({
       hash: txHash as `0x${string}`,
     });
 
