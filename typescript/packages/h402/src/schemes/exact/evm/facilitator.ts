@@ -7,19 +7,22 @@ import {
   EvmPaymentPayload,
   EvmAuthorizationPayload,
   EvmSignAndSendTransactionPayload,
+  EvmSignedTransactionPayload,
+  Namespace,
 } from "../../../types";
 import {
   encodeFunctionData,
   WalletClient,
   PublicActions,
   PublicClient,
-  decodeFunctionData,
-  decodeEventLog,
-  keccak256,
-  toBytes,
   Hex,
+  parseTransaction,
 } from "viem";
 import { h402Version } from "../../../index.js";
+import {
+  validateTransferData,
+  validateTransferEventLog
+} from "./validation.js";
 
 const BLOCK_TIME = 2; // Average block time in seconds
 const SAFETY_BLOCKS = 3; // Number of blocks for safety margin
@@ -69,6 +72,11 @@ async function verify(
       case "signAndSendTransaction":
         return await verifySignAndSendTransactionPayload(
           client,
+          payload.payload,
+          paymentRequirements
+        );
+      case "signedTransaction":
+        return await verifySignedTransactionPayload(
           payload.payload,
           paymentRequirements
         );
@@ -297,123 +305,30 @@ async function verifySignAndSendTransactionPayload(
       };
     }
 
-    if (paymentRequirements.tokenAddress === evm.ZERO_ADDRESS) {
-      if (txData.value < paymentRequirements.amountRequired) {
-        return {
-          isValid: false,
-          errorMessage: "Insufficient transfer amount",
-        };
-      }
-      if (
-        txData.to?.toLowerCase() !==
-        (paymentRequirements.payToAddress as Hex).toLowerCase()
-      ) {
-        return {
-          isValid: false,
-          errorMessage: "Invalid recipient address",
-        };
-      }
-    } else {
-      if (
-        txData.to?.toLowerCase() !==
-        (paymentRequirements.tokenAddress as Hex).toLowerCase()
-      ) {
-        return {
-          isValid: false,
-          errorMessage: "Invalid token contract address",
-        };
-      }
+    // Use consolidated validation for transaction data
+    const transferValidation = validateTransferData(txData, paymentRequirements);
+    if (!transferValidation.isValid) {
+      return {
+        isValid: false,
+        errorMessage: transferValidation.errorMessage!,
+      };
+    }
 
-      try {
-        const decodedInput = decodeFunctionData({
-          abi: [
-            {
-              name: "transfer",
-              type: "function",
-              inputs: [
-                { name: "to", type: "address" },
-                { name: "value", type: "uint256" },
-              ],
-              outputs: [{ name: "success", type: "bool" }],
-              stateMutability: "nonpayable",
-            },
-          ],
-          data: txData.input,
-        });
-
-        if (decodedInput.functionName !== "transfer") {
-          return {
-            isValid: false,
-            errorMessage: "Not a transfer function call",
-          };
-        }
-
-        const [recipient, amount] = decodedInput.args;
-        if (
-          recipient.toLowerCase() !==
-          (paymentRequirements.payToAddress as Hex).toLowerCase()
-        ) {
-          return {
-            isValid: false,
-            errorMessage: "Invalid transfer recipient",
-          };
-        }
-        if (amount < paymentRequirements.amountRequired) {
-          return {
-            isValid: false,
-            errorMessage: "Insufficient transfer amount",
-          };
-        }
-      } catch (error) {
-        return {
-          isValid: false,
-          errorMessage: "Invalid transfer data",
-        };
-      }
-
-      const transferEvent = txReceipt.logs.find(
-        (log) =>
-          log.address.toLowerCase() ===
-            (paymentRequirements.tokenAddress as Hex).toLowerCase() &&
-          log.topics[0] ===
-            keccak256(toBytes("Transfer(address,address,uint256)"))
+    // For ERC20 tokens, also validate the event log (double-check that transfer actually happened)
+    if (paymentRequirements.tokenAddress !== evm.ZERO_ADDRESS) {
+      const eventValidation = validateTransferEventLog(
+        txReceipt.logs,
+        paymentRequirements
       );
-
-      if (!transferEvent) {
+      if (!eventValidation.isValid) {
         return {
           isValid: false,
-          errorMessage: "No transfer event found",
-        };
-      }
-
-      const decodedEvent = decodeEventLog({
-        abi: [
-          {
-            name: "Transfer",
-            type: "event",
-            inputs: [
-              { name: "from", type: "address", indexed: true },
-              { name: "to", type: "address", indexed: true },
-              { name: "value", type: "uint256", indexed: false },
-            ],
-          },
-        ],
-        data: transferEvent.data,
-        topics: transferEvent.topics,
-      });
-
-      if (
-        decodedEvent.args.to.toLowerCase() !==
-          (paymentRequirements.payToAddress as Hex).toLowerCase() ||
-        decodedEvent.args.value < paymentRequirements.amountRequired
-      ) {
-        return {
-          isValid: false,
-          errorMessage: "Transfer event data does not match requirements",
+          errorMessage: eventValidation.errorMessage!,
         };
       }
     }
 
+    // Verify signed message
     const messageVerified = await client.verifyMessage({
       address: txData.from,
       message: paymentRequirements.resource ?? `402 signature ${Date.now()}`,
@@ -433,6 +348,37 @@ async function verifySignAndSendTransactionPayload(
     return {
       isValid: false,
       errorMessage: `Failed to verify sign and send transaction: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
+async function verifySignedTransactionPayload(
+  payload: EvmSignedTransactionPayload,
+  paymentRequirements: PaymentRequirements
+): Promise<VerifyResponse> {
+  try {
+    // Parse the signed transaction to validate its structure and content
+    const parsedTx = parseTransaction(payload.signedTransaction as Hex);
+
+    // Use consolidated validation
+    const transferValidation = validateTransferData(parsedTx, paymentRequirements);
+    if (!transferValidation.isValid) {
+      return {
+        isValid: false,
+        errorMessage: transferValidation.errorMessage!,
+      };
+    }
+
+    return {
+      isValid: true,
+      type: "payload",
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      errorMessage: `Failed to verify signed transaction: ${
         error instanceof Error ? error.message : String(error)
       }`,
     };
@@ -465,43 +411,40 @@ async function settle(
       };
     }
 
-    if (payload.payload.type === "signAndSendTransaction") {
-      return {
-        success: false,
-        transaction: "",
-        namespace: payload.namespace,
-        errorReason: "invalid_scheme",
-        error: "This payload type is not supported",
-      };
+    switch (payload.payload.type) {
+      case "authorization":
+        return await settleAuthorizationPayload(
+          client,
+          payload.payload,
+          paymentRequirements,
+          payload.namespace
+        );
+
+      case "signedTransaction":
+        return await settleSignedTransactionPayload(
+          client,
+          payload.payload,
+          payload.namespace
+        );
+
+      case "signAndSendTransaction":
+        return {
+          success: false,
+          transaction: "",
+          namespace: payload.namespace,
+          errorReason: "invalid_scheme",
+          error: "SignAndSendTransaction payloads cannot be settled (already executed)",
+        };
+
+      default:
+        return {
+          success: false,
+          transaction: "",
+          namespace: payload.namespace,
+          errorReason: "invalid_payload",
+          error: "Unsupported payload type",
+        };
     }
-
-    const txHash = await client.sendRawTransaction({
-      serializedTransaction: payload.payload.signature as Hex,
-    });
-
-    const receipt = await client.waitForTransactionReceipt({
-      hash: txHash as `0x${string}`,
-    });
-
-    if (receipt.status === "success") {
-      return {
-        success: true,
-        transaction: txHash,
-        namespace: payload.namespace,
-        payer:
-          payload.payload.type === "authorization"
-            ? payload.payload.authorization.from
-            : undefined,
-      };
-    }
-
-    return {
-      success: false,
-      transaction: txHash,
-      namespace: payload.namespace,
-      errorReason: "invalid_transaction_state",
-      error: "Transaction failed",
-    };
   } catch (error) {
     return {
       success: false,
@@ -509,6 +452,127 @@ async function settle(
       namespace: payload.namespace,
       errorReason: "unexpected_settle_error",
       error: `Failed to settle payment: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
+async function settleAuthorizationPayload(
+  client: WalletClient & PublicActions,
+  payload: EvmAuthorizationPayload,
+  paymentRequirements: PaymentRequirements,
+  namespace: string
+): Promise<SettleResponse> {
+  try {
+    const data = encodeFunctionData({
+      abi: [
+        {
+          name: "transferWithAuthorization",
+          type: "function",
+          inputs: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+            { name: "signature", type: "bytes" },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+      ],
+      functionName: "transferWithAuthorization",
+      args: [
+        payload.authorization.from as Hex,
+        payload.authorization.to as Hex,
+        payload.authorization.value,
+        payload.authorization.validAfter,
+        payload.authorization.validBefore,
+        payload.authorization.nonce as Hex,
+        payload.signature as Hex,
+      ],
+    });
+
+    const txHash = await client.sendTransaction({
+      account: client.account!,
+      to: paymentRequirements.tokenAddress as Hex,
+      data,
+      chain: evm.getChain(paymentRequirements.networkId),
+    });
+
+    const receipt = await client.waitForTransactionReceipt({
+      hash: txHash,
+    });
+
+    if (receipt.status === "success") {
+      return {
+        success: true,
+        transaction: txHash,
+        namespace: namespace as Namespace,
+        payer: payload.authorization.from,
+      };
+    }
+
+    return {
+      success: false,
+      transaction: txHash,
+      namespace: namespace as Namespace,
+      errorReason: "invalid_transaction_state",
+      error: "Authorization transaction failed",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      transaction: "",
+      namespace: namespace as Namespace,
+      errorReason: "unexpected_settle_error",
+      error: `Failed to settle authorization: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
+async function settleSignedTransactionPayload(
+  client: WalletClient & PublicActions,
+  payload: EvmSignedTransactionPayload,
+  namespace: string
+): Promise<SettleResponse> {
+  try {
+    // Broadcast the signed transaction
+    const txHash = await client.sendRawTransaction({
+      serializedTransaction: payload.signedTransaction as Hex,
+    });
+
+    const receipt = await client.waitForTransactionReceipt({
+      hash: txHash,
+    });
+
+    if (receipt.status === "success") {
+      return {
+        success: true,
+        transaction: txHash,
+        namespace: namespace as Namespace,
+        payer: receipt.from,
+      };
+    }
+
+    return {
+      success: false,
+      transaction: txHash,
+      namespace: namespace as Namespace,
+      errorReason: "invalid_transaction_state",
+      error: "Signed transaction failed",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      transaction: "",
+      namespace: namespace as Namespace,
+      errorReason: "unexpected_settle_error",
+      error: `Failed to settle signed transaction: ${
         error instanceof Error ? error.message : String(error)
       }`,
     };

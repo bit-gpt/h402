@@ -1,5 +1,5 @@
 import { WalletClient, PublicActions } from "viem";
-import { signAndSendTransaction, signAuthorization, utils } from "./index.js";
+import { signAndSendTransaction, signAuthorization, signTransaction, utils } from "./index.js";
 import { evm } from "../../../shared/index.js";
 import { PaymentRequirements, EvmPaymentPayload } from "../../../types";
 import { Hex } from "viem";
@@ -35,23 +35,7 @@ async function _createPayment(
     resource: paymentRequirements.resource!,
   };
 
-  if (paymentRequirements.tokenAddress === evm.ZERO_ADDRESS) {
-    const result = await signAndSendTransaction(
-      client,
-      { from, to, value },
-      paymentRequirements
-    );
-
-    return {
-      ...basePayment,
-      payload: {
-        type: "signAndSendTransaction",
-        signedMessage: result.signature,
-        transactionHash: result.txHash,
-      },
-    };
-  }
-
+  // First try to sign authorization without broadcasting (ERC-3009)
   const hasTransferWithAuthorization = await client
     .readContract({
       address: paymentRequirements.tokenAddress as Hex,
@@ -95,22 +79,43 @@ async function _createPayment(
         },
       },
     };
+  } else {
+    try {
+      console.log('[Create Payment] SIGN TRANSACTION')
+      // Try to sign transaction without broadcasting
+      const result = await signTransaction(
+        client,
+        { from, to, value },
+        paymentRequirements
+      );
+
+      return {
+        ...basePayment,
+        payload: {
+          type: "signedTransaction",
+          signedTransaction: result.signedTransaction,
+          signedMessage: result.messageSignature,
+        },
+      };
+    } catch {
+      console.log('[Create Payment] SIGN AND SEND TRANSACTION')
+      // Fallback to signAndSendTransaction
+      const result = await signAndSendTransaction(
+        client,
+        { from, to, value },
+        paymentRequirements
+      );
+
+      return {
+        ...basePayment,
+        payload: {
+          type: "signAndSendTransaction",
+          signedMessage: result.signature,
+          transactionHash: result.txHash,
+        },
+      };
+    }
   }
-
-  const result = await signAndSendTransaction(
-    client,
-    { from, to, value },
-    paymentRequirements
-  );
-
-  return {
-    ...basePayment,
-    payload: {
-      type: "signAndSendTransaction",
-      signedMessage: result.signature,
-      transactionHash: result.txHash,
-    },
-  };
 }
 
 async function createPayment(

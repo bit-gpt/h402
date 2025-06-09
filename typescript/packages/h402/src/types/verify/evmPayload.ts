@@ -52,10 +52,20 @@ export type EvmSignAndSendTransactionPayload = z.infer<
   typeof EvmSignAndSendTransactionPayloadSchema
 >;
 
+const EvmSignedTransactionPayloadSchema = z.object({
+  type: z.literal("signedTransaction"),
+  signedTransaction: z.string().regex(/^0x[a-fA-F0-9]+$/), // Signed transaction hex
+  signedMessage: z.string().regex(/^0x[a-fA-F0-9]+$/).optional(), // Optional signed message
+});
+export type EvmSignedTransactionPayload = z.infer<
+  typeof EvmSignedTransactionPayloadSchema
+>;
+
 // Updated ExactEvmPayloadSchema as discriminated union
 export const ExactEvmPayloadSchema = z.discriminatedUnion("type", [
   EvmAuthorizationPayloadSchema,
   EvmSignAndSendTransactionPayloadSchema,
+  EvmSignedTransactionPayloadSchema
 ]);
 
 export type ExactEvmPayload = z.infer<typeof ExactEvmPayloadSchema>;
@@ -64,6 +74,7 @@ export type ExactEvmPayload = z.infer<typeof ExactEvmPayloadSchema>;
 export {
   EvmAuthorizationPayloadSchema,
   EvmSignAndSendTransactionPayloadSchema,
+  EvmSignedTransactionPayloadSchema,
   EvmAuthorizationParametersSchema,
   EvmSignAndSendTransactionParametersSchema,
 };

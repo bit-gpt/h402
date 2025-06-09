@@ -38,13 +38,13 @@ async function signAuthorization(
   >
 ): Promise<
   | {
-      type: "signature";
-      signature: Hex;
-      nonce: Hex;
-      version: string;
-      validAfter: bigint;
-      validBefore: bigint;
-    }
+  type: "signature";
+  signature: Hex;
+  nonce: Hex;
+  version: string;
+  validAfter: bigint;
+  validBefore: bigint;
+}
   | { type: "fallback"; signature: Hex; txHash: Hex }
 > {
   try {
@@ -110,6 +110,96 @@ async function signAuthorization(
       { networkId, resource, tokenAddress }
     );
     return { type: "fallback", ...result };
+  }
+}
+
+async function signTransaction(
+  client: WalletClient & PublicActions,
+  {
+    from,
+    to,
+    value,
+  }: Pick<EvmSignAndSendTransactionParameters, "from" | "to" | "value">,
+  {
+    networkId,
+    resource,
+    tokenAddress,
+  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
+): Promise<{ signedTransaction: Hex; messageSignature?: Hex }> {
+  try {
+    // Sign the resource message (similar to signAndSendTransaction)
+    const messageSignature = await client.signMessage({
+      account: from as Hex,
+      message: resource ?? `402 signature ${Date.now()}`,
+    });
+
+    const chain = evm.getChain(networkId);
+    const account = from as Hex;
+
+    // Get current gas price and nonce
+    const [gasPrice, nonce] = await Promise.all([
+      client.getGasPrice(),
+      client.getTransactionCount({ address: account }),
+    ]);
+
+    let transactionRequest;
+
+    if (tokenAddress === evm.ZERO_ADDRESS) {
+      // Native token transfer
+      transactionRequest = {
+        account,
+        to: to as Hex,
+        value,
+        gasPrice,
+        nonce,
+        chain,
+      };
+    } else {
+      // ERC20 token transfer
+      const data = encodeFunctionData({
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [to as Hex, value],
+      });
+
+      transactionRequest = {
+        account,
+        to: tokenAddress as Hex,
+        data,
+        gasPrice,
+        nonce,
+        chain,
+      };
+    }
+
+    // Estimate gas for the transaction
+    const gas = await client.estimateGas({
+      account,
+      to: transactionRequest.to,
+      value: transactionRequest.value,
+      data: transactionRequest.data,
+    });
+
+    const finalTransaction = {
+      ...transactionRequest,
+      gas,
+    };
+
+    console.log("before signTransaction");
+    // Sign the transaction without broadcasting
+    const signedTransaction = await client.signTransaction(finalTransaction);
+    console.log("after signTransaction");
+
+    return {
+      signedTransaction,
+      messageSignature, // The signed message for the resource
+    };
+  } catch (error) {
+    throw new Error(
+      `Failed to sign transaction: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }
 
@@ -188,4 +278,37 @@ async function signAndSendTransaction(
   }
 }
 
-export { signAuthorization, signAndSendTransaction };
+// Utility function to broadcast a previously signed transaction
+async function broadcastSignedTransaction(
+  client: WalletClient & PublicActions,
+  signedTransaction: Hex
+): Promise<{ txHash: Hex }> {
+  try {
+    const txHash = await client.sendRawTransaction({
+      serializedTransaction: signedTransaction,
+    });
+
+    const receipt = await client.waitForTransactionReceipt({
+      hash: txHash,
+    });
+
+    if (receipt.status !== "success") {
+      throw new Error(`Transaction failed with status: ${receipt.status}`);
+    }
+
+    return { txHash };
+  } catch (error) {
+    throw new Error(
+      `Failed to broadcast signed transaction: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+export {
+  signAuthorization,
+  signAndSendTransaction,
+  signTransaction,
+  broadcastSignedTransaction
+};
