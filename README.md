@@ -1,6 +1,6 @@
 # HTTP 402 protocol
 
-![402 preview](./images/site/preview.png)
+![402 preview](./static/site/preview.png)
 
 HTTP 402 is the web-native standard for payments. Our mission is to design a frictionless machine-to-machine protocol that allows agents to pay for APIs, compute resources, and data using simple HTTP requests and native blockchain transactions scaling to billions of sub-cent microtransactions.
 
@@ -37,7 +37,7 @@ export const config = {
 
 This protocol builds on top of the scheme from [x402](https://github.com/coinbase/x402), to ensure the continuation and adoption of a true open standard. You can check our [FAQs](https://bitgpt.xyz/faq402) to learn more.
 
-![playground sequence diagram explanations](./images/playground/explanation.png)
+![playground sequence diagram explanations](./static/playground/explanation.png)
 
 ## Supported networks and schemes
 
