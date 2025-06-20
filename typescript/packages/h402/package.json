@@ -43,6 +43,13 @@
       "import": "./dist/facilitator/index.js",
       "default": "./dist/facilitator/index.js"
     },
+    "./scheme": {
+      "import": {
+        "types": "./dist/scheme/index.d.ts",
+        "import": "./dist/scheme/index.js",
+        "default": "./dist/scheme/index.js"
+      }
+    },
     "./schemes/exact/solana": {
       "types": "./dist/schemes/exact/solana/index.d.ts",
       "import": "./dist/schemes/exact/solana/index.js",
@@ -77,13 +84,6 @@
         "types": "./dist/shared/index.d.ts",
         "import": "./dist/shared/index.js",
         "default": "./dist/shared/index.js"
-      }
-    },
-    "./scheme": {
-      "import": {
-        "types": "./dist/scheme/index.d.ts",
-        "import": "./dist/scheme/index.js",
-        "default": "./dist/scheme/index.js"
       }
     }
   },
