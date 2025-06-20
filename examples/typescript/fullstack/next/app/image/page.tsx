@@ -84,7 +84,7 @@ function ImageComponent({
           );
           setRequestId(data.requestId);
           // Now we'll start checking the status of the image generation
-          checkImageStatus(data.requestId, 15, 2000);
+          await checkImageStatus(data.requestId, 15, 2000);
         } else {
           throw new Error("No requestId received from API");
         }

@@ -5,9 +5,9 @@ import { FacilitatorResponse, VerifyResponse, SettleResponse } from "@bit-gpt/h4
 import { safeBase64Decode } from "@bit-gpt/h402/shared";
 
 config();
-const { PRIVATE_KEY, PORT } = process.env;
+const { EVM_PRIVATE_KEY, PORT } = process.env;
 
-if (!PRIVATE_KEY || !PORT) {
+if (!EVM_PRIVATE_KEY || !PORT) {
   console.error("Missing required environment variables");
   process.exit(1);
 }
@@ -82,20 +82,16 @@ app.post("/settle", async (req: any, res: any) => {
     const settleResult = await settle(
       decodedPayload,
       paymentRequirements,
-      PRIVATE_KEY as `0x${string}`,
+      EVM_PRIVATE_KEY as `0x${string}`,
     );
 
-    if ("errorMessage" in settleResult) {
-      return res.status(400).json({
-        error: settleResult.errorMessage,
-        success: false,
-      } as SettleResponse);
+    console.log("settleResult", settleResult);
+
+    if ("errorReason" in settleResult) {
+      return res.status(400).json(settleResult as SettleResponse);
     }
 
-    res.json({
-      success: true,
-      transaction: settleResult.transaction,
-    } as SettleResponse);
+    res.json(settleResult as SettleResponse);
   } catch (error) {
     console.error(error);
     res.status(400).json({ error: "Invalid request" });

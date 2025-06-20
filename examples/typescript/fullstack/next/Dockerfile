@@ -14,12 +14,12 @@ COPY ./pnpm-lock.yaml /app/pnpm-lock.yaml
 COPY ./pnpm-workspace.yaml /app/pnpm-workspace.yaml
 COPY ./typescript/packages/h402/package.json /app/typescript/packages/h402/package.json
 COPY ./typescript/packages/h402-next/package.json /app/typescript/packages/h402-next/package.json
-COPY ./examples/typescript/fullstack/next/package.json /app/examples/typescript/fullstack/next/package.json 
+COPY ./examples/typescript/fullstack/next/package.json /app/examples/typescript/fullstack/next/package.json
 
 RUN --mount=type=cache,target=/app/.pnpm-store \
     pnpm --filter '@bit-gpt/h402' i && \
     pnpm --filter 'h402-next' i && \
-    pnpm --filter example i
+    pnpm --filter h402-next-example i
 
 COPY ./typescript/tsconfig.base.json /app/typescript/tsconfig.base.json
 COPY ./typescript/packages/h402 /app/typescript/packages/h402
@@ -29,9 +29,9 @@ COPY ./examples/typescript/fullstack/next /app/examples/typescript/fullstack/nex
 RUN pnpm --filter '@bit-gpt/h402' build
 RUN pnpm --filter 'h402-next' build
 RUN --mount=type=cache,target=/app/examples/typescript/fullstack/next/.next/cache \
-    pnpm --filter example build
+    pnpm --filter h402-next-example build
 
-FROM node:22-alpine3.21 AS prod 
+FROM node:22-alpine3.21 AS prod
 COPY --from=build /app/pnpm-lock.yaml /app/pnpm-lock.yaml
 COPY --from=build /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
 COPY --from=build /app/package.json /app/package.json

@@ -19,10 +19,13 @@ import {
   SettleResponse,
   EvmPaymentPayload,
   SolanaPaymentPayload,
+  ChainIdToEvmNetwork,
 } from "../types";
 import { EvmClient, SolanaClient } from "../types/shared/client";
-import { PublicClient } from "viem";
+import { createWalletClient, http, publicActions, PublicClient } from "viem";
 import { getPublicClient } from "../types/shared/evm/wallet.js";
+import { privateKeyToAccount } from "viem/accounts";
+import { getChain } from "../shared/evm/chainUtils.js";
 
 /**
  * Type representing any supported payment payload
@@ -85,10 +88,16 @@ export async function settle(
       paymentRequirements
     );
   } else {
-    // For EVM, we need to create a client from the private key
-    // This assumes that the EVM facilitator can handle a private key string
+    const account = privateKeyToAccount(privateKeyOrClient as `0x${string}`);
+    const chain = getChain(paymentRequirements.networkId);
+    const client = createWalletClient({
+      account,
+      transport: http(),
+      chain,
+    }).extend(publicActions);
+
     return evmFacilitator.settle(
-      privateKeyOrClient as EvmClient,
+      client,
       payload as EvmPaymentPayload,
       paymentRequirements
     );

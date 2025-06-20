@@ -3,6 +3,7 @@ import {
   EvmSignAndSendTransactionParameters,
   PaymentRequirements,
 } from "../../../types/index.js";
+import { stringToHex } from "../../../shared/encoding.js";
 import { evm } from "../../../shared/index.js";
 import { WalletClient, PublicActions, Hex, encodeFunctionData } from "viem";
 
@@ -19,6 +20,96 @@ const ERC20_ABI = [
   },
 ] as const;
 
+// Utility function to detect wallet type
+function isLocalSigner(client: WalletClient & PublicActions): boolean {
+  return !!(client.account && typeof client.account.signMessage === "function");
+}
+
+// Unified message signing function
+async function signResourceMessage(
+  client: WalletClient & PublicActions,
+  from: string,
+  resource?: string
+): Promise<Hex> {
+  const messageToSign = resource ?? `402 signature ${Date.now()}`;
+
+  if (isLocalSigner(client)) {
+    // Axios interceptor path - use local signing with hex encoding
+    const messageHex = `0x${stringToHex(messageToSign)}` as Hex;
+    return (await client.account?.signMessage?.({
+      message: { raw: messageHex },
+    })) as Hex;
+  } else {
+    // MetaMask path - use client signing
+    return await client.signMessage({
+      account: from as Hex,
+      message: messageToSign,
+    });
+  }
+}
+
+// Utility function to create transaction request
+async function createTransactionRequest(
+  client: WalletClient & PublicActions,
+  from: string,
+  to: string,
+  value: bigint,
+  tokenAddress: string | undefined,
+  networkId: string
+) {
+  const chain = evm.getChain(networkId);
+  const account = from as Hex;
+
+  // Get current gas price and nonce in parallel
+  const [gasPrice, nonce] = await Promise.all([
+    client.getGasPrice(),
+    client.getTransactionCount({ address: account }),
+  ]);
+
+  let baseRequest;
+
+  if (tokenAddress === evm.ZERO_ADDRESS) {
+    // Native token transfer
+    baseRequest = {
+      account,
+      to: to as Hex,
+      value,
+      gasPrice,
+      nonce,
+      chain,
+    };
+  } else {
+    // ERC20 token transfer
+    const data = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "transfer",
+      args: [to as Hex, value],
+    });
+
+    baseRequest = {
+      account,
+      to: tokenAddress as Hex,
+      data,
+      gasPrice,
+      nonce,
+      chain,
+    };
+  }
+
+  // Estimate gas for the transaction
+  const gas = await client.estimateGas({
+    account: baseRequest.account,
+    to: baseRequest.to,
+    value: baseRequest.value,
+    data: baseRequest.data,
+  });
+
+  return {
+    ...baseRequest,
+    gas,
+  };
+}
+
 async function signAuthorization(
   client: WalletClient & PublicActions,
   {
@@ -30,22 +121,18 @@ async function signAuthorization(
     tokenAddress,
     networkId,
     estimatedProcessingTime,
-    resource,
   }: Pick<
     PaymentRequirements,
-    "tokenAddress" | "networkId" | "estimatedProcessingTime" | "resource"
+    "tokenAddress" | "networkId" | "estimatedProcessingTime"
   >
-): Promise<
-  | {
+): Promise<{
   type: "signature";
   signature: Hex;
   nonce: Hex;
   version: string;
   validAfter: bigint;
   validBefore: bigint;
-}
-  | { type: "fallback"; signature: Hex; txHash: Hex }
-> {
+}> {
   try {
     const nonce = evm.createNonce();
     const validAfter = BigInt(
@@ -54,6 +141,7 @@ async function signAuthorization(
     const validBefore = BigInt(
       Math.floor(Date.now() / 1000 + (estimatedProcessingTime ?? 30))
     );
+
     const { domain } = await client.getEip712Domain({
       address: tokenAddress?.toLowerCase() as Hex,
     });
@@ -100,15 +188,11 @@ async function signAuthorization(
       validBefore,
     };
   } catch (error) {
-    console.warn(
-      "Failed to sign authorization, falling back to signAndSendTransaction"
+    throw new Error(
+      `Failed to sign authorization: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     );
-    const result = await signAndSendTransaction(
-      client,
-      { from, to, value },
-      { networkId, resource, tokenAddress }
-    );
-    return { type: "fallback", ...result };
   }
 }
 
@@ -121,77 +205,38 @@ async function signTransaction(
   }: Pick<EvmSignAndSendTransactionParameters, "from" | "to" | "value">,
   {
     networkId,
-    resource,
     tokenAddress,
-  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
-): Promise<{ signedTransaction: Hex; messageSignature?: Hex }> {
+  }: Pick<PaymentRequirements, "networkId" | "tokenAddress">
+): Promise<{ signedTransaction: Hex }> {
   try {
-    // Sign the resource message (similar to signAndSendTransaction)
-    const messageSignature = await client.signMessage({
-      account: from as Hex,
-      message: resource ?? `402 signature ${Date.now()}`,
-    });
+    // Create transaction request
+    const transactionRequest = await createTransactionRequest(
+      client,
+      from,
+      to,
+      value,
+      tokenAddress,
+      networkId
+    );
 
-    const chain = evm.getChain(networkId);
-    const account = from as Hex;
+    console.log("Attempting to sign transaction");
 
-    // Get current gas price and nonce
-    const [gasPrice, nonce] = await Promise.all([
-      client.getGasPrice(),
-      client.getTransactionCount({ address: account }),
-    ]);
+    let signedTransaction: Hex;
 
-    let transactionRequest;
-
-    if (tokenAddress === evm.ZERO_ADDRESS) {
-      // Native token transfer
-      transactionRequest = {
-        account,
-        to: to as Hex,
-        value,
-        gasPrice,
-        nonce,
-        chain,
-      };
+    if (isLocalSigner(client)) {
+      // direct local signing, for Axios interceptor
+      signedTransaction = (await client.account?.signTransaction?.(
+        transactionRequest
+      )) as Hex;
     } else {
-      // ERC20 token transfer
-      const data = encodeFunctionData({
-        abi: ERC20_ABI,
-        functionName: "transfer",
-        args: [to as Hex, value],
-      });
-
-      transactionRequest = {
-        account,
-        to: tokenAddress as Hex,
-        data,
-        gasPrice,
-        nonce,
-        chain,
-      };
+      console.log("Not a local signer");
+      throw new Error("MetaMask doesn't support sign-only transactions");
     }
 
-    // Estimate gas for the transaction
-    const gas = await client.estimateGas({
-      account,
-      to: transactionRequest.to,
-      value: transactionRequest.value,
-      data: transactionRequest.data,
-    });
-
-    const finalTransaction = {
-      ...transactionRequest,
-      gas,
-    };
-
-    console.log("before signTransaction");
-    // Sign the transaction without broadcasting
-    const signedTransaction = await client.signTransaction(finalTransaction);
-    console.log("after signTransaction");
+    console.log("Transaction signed successfully");
 
     return {
       signedTransaction,
-      messageSignature, // The signed message for the resource
     };
   } catch (error) {
     throw new Error(
@@ -211,82 +256,59 @@ async function signAndSendTransaction(
   }: Pick<EvmSignAndSendTransactionParameters, "from" | "to" | "value">,
   {
     networkId,
-    resource,
     tokenAddress,
-  }: Pick<PaymentRequirements, "networkId" | "resource" | "tokenAddress">
-): Promise<{ signature: Hex; txHash: Hex }> {
-  try {
-    const signature = await client.signMessage({
-      account: from as Hex,
-      message: resource ?? `402 signature ${Date.now()}`,
-    });
-
-    if (tokenAddress === evm.ZERO_ADDRESS) {
-      const transaction = await client.sendTransaction({
-        account: from as Hex,
-        to: to as Hex,
-        value,
-        chain: evm.getChain(networkId),
-      });
-
-      const receipt = await client.waitForTransactionReceipt({
-        hash: transaction,
-      });
-
-      if (receipt.status !== "success") {
-        throw new Error(`Transaction failed with status: ${receipt.status}`);
-      }
-
-      return {
-        signature,
-        txHash: transaction,
-      };
-    } else {
-      const data = encodeFunctionData({
-        abi: ERC20_ABI,
-        functionName: "transfer",
-        args: [to as Hex, value],
-      });
-
-      const transaction = await client.sendTransaction({
-        account: from as Hex,
-        to: tokenAddress as Hex,
-        data,
-        chain: evm.getChain(networkId),
-      });
-
-      const receipt = await client.waitForTransactionReceipt({
-        hash: transaction,
-      });
-
-      if (receipt.status !== "success") {
-        throw new Error(`Transaction failed with status: ${receipt.status}`);
-      }
-
-      return {
-        signature,
-        txHash: transaction,
-      };
-    }
-  } catch (error) {
-    throw new Error(
-      `Failed to sign and send transaction: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-  }
-}
-
-// Utility function to broadcast a previously signed transaction
-async function broadcastSignedTransaction(
-  client: WalletClient & PublicActions,
-  signedTransaction: Hex
+  }: Pick<PaymentRequirements, "networkId" | "tokenAddress">
 ): Promise<{ txHash: Hex }> {
   try {
-    const txHash = await client.sendRawTransaction({
-      serializedTransaction: signedTransaction,
-    });
+    let txHash: Hex;
 
+    if (isLocalSigner(client)) {
+      // Local signer, for Axios interceptor path - sign then broadcast
+      // Not really supposed to take that path, but kept just in case
+      const transactionRequest = await createTransactionRequest(
+        client,
+        from,
+        to,
+        value,
+        tokenAddress,
+        networkId
+      );
+
+      // Sign the transaction locally
+      const signedTx = await client.signTransaction(transactionRequest);
+
+      // Broadcast the signed transaction
+      txHash = await client.sendRawTransaction({
+        serializedTransaction: signedTx,
+      });
+    } else {
+      // MetaMask path - direct sendTransaction
+      const chain = evm.getChain(networkId);
+
+      if (tokenAddress === evm.ZERO_ADDRESS) {
+        txHash = await client.sendTransaction({
+          account: from as Hex,
+          to: to as Hex,
+          value,
+          chain,
+        });
+      } else {
+        const data = encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [to as Hex, value],
+        });
+
+        txHash = await client.sendTransaction({
+          account: from as Hex,
+          to: tokenAddress as Hex,
+          data,
+          chain,
+        });
+      }
+    }
+
+    // Wait for transaction confirmation
     const receipt = await client.waitForTransactionReceipt({
       hash: txHash,
     });
@@ -295,10 +317,12 @@ async function broadcastSignedTransaction(
       throw new Error(`Transaction failed with status: ${receipt.status}`);
     }
 
-    return { txHash };
+    return {
+      txHash,
+    };
   } catch (error) {
     throw new Error(
-      `Failed to broadcast signed transaction: ${
+      `Failed to sign and send transaction: ${
         error instanceof Error ? error.message : String(error)
       }`
     );
@@ -309,5 +333,5 @@ export {
   signAuthorization,
   signAndSendTransaction,
   signTransaction,
-  broadcastSignedTransaction
+  signResourceMessage,
 };

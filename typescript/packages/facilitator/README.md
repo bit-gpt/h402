@@ -20,8 +20,9 @@ pnpm install
 2. Create a `.env` file with the following variables:
 
 ```env
-PRIVATE_KEY=0xYourPrivateKey
-PORT=3000
+EVM_PRIVATE_KEY=0xYourPrivateKey
+PORT=3001
+FACILITATOR_URL=http://localhost:3001
 ```
 
 3. Start the server:
@@ -30,7 +31,7 @@ PORT=3000
 pnpm dev
 ```
 
-The server will start on http://localhost:3000
+The server will start on http://localhost:3001
 
 ## API Endpoints
 

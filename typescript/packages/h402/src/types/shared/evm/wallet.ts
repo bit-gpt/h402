@@ -13,6 +13,7 @@ import type {
   PublicActions,
   WalletActions,
   PublicClient,
+  LocalAccount,
 } from "viem";
 import { baseSepolia, avalancheFuji, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
@@ -49,10 +50,12 @@ export function getPublicClient(
   networkId: string
 ): ConnectedClient<Transport, any, undefined> {
   switch (networkId) {
+    /*
     case EvmNetworkToChainId.get("base")?.toString():
       return createClientSepolia();
     case EvmNetworkToChainId.get("avalanche")?.toString():
       return createClientAvalancheFuji();
+    */
     case EvmNetworkToChainId.get("bsc")?.toString():
       return createClientBsc();
     default:
@@ -179,3 +182,5 @@ export function isSignerWallet<
 export function isAccount(wallet: SignerWallet | Account): wallet is Account {
   return "address" in wallet && "type" in wallet;
 }
+
+export type Wallet = SignerWallet | LocalAccount;

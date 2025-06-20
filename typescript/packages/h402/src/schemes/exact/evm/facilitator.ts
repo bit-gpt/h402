@@ -21,7 +21,7 @@ import {
 import { h402Version } from "../../../index.js";
 import {
   validateTransferData,
-  validateTransferEventLog
+  validateTransferEventLog,
 } from "./validation.js";
 
 const BLOCK_TIME = 2; // Average block time in seconds
@@ -306,7 +306,10 @@ async function verifySignAndSendTransactionPayload(
     }
 
     // Use consolidated validation for transaction data
-    const transferValidation = validateTransferData(txData, paymentRequirements);
+    const transferValidation = validateTransferData(
+      txData,
+      paymentRequirements
+    );
     if (!transferValidation.isValid) {
       return {
         isValid: false,
@@ -363,7 +366,10 @@ async function verifySignedTransactionPayload(
     const parsedTx = parseTransaction(payload.signedTransaction as Hex);
 
     // Use consolidated validation
-    const transferValidation = validateTransferData(parsedTx, paymentRequirements);
+    const transferValidation = validateTransferData(
+      parsedTx,
+      paymentRequirements
+    );
     if (!transferValidation.isValid) {
       return {
         isValid: false,
@@ -433,7 +439,8 @@ async function settle(
           transaction: "",
           namespace: payload.namespace,
           errorReason: "invalid_scheme",
-          error: "SignAndSendTransaction payloads cannot be settled (already executed)",
+          error:
+            "SignAndSendTransaction payloads cannot be settled (already executed)",
         };
 
       default:

@@ -1,5 +1,5 @@
-import {h402NextMiddleware} from "h402-next";
-import {imageGenerationPaymentRequirements} from "./config/paymentRequirements";
+import { h402NextMiddleware } from "h402-next";
+import { imageGenerationPaymentRequirements } from "./config/paymentRequirements";
 
 export const middleware = h402NextMiddleware({
   routes: {

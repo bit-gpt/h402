@@ -1,5 +1,11 @@
 import { WalletClient, PublicActions, Hex } from "viem";
-import { signAndSendTransaction, signTransaction, signAuthorization, utils } from "./index.js";
+import {
+  signResourceMessage,
+  signAndSendTransaction,
+  signTransaction,
+  signAuthorization,
+  utils,
+} from "./index.js";
 import { evm } from "../../../shared/index.js";
 import {
   PaymentRequirements,
@@ -47,43 +53,42 @@ async function _createPayment(
     .then(() => true)
     .catch(() => false);
 
-  if (hasTransferWithAuthorization) {
-    const result = await signAuthorization(
+  const resourceSignature = await signResourceMessage(
+    client,
+    from,
+    paymentRequirements.resource
+  );
+
+  try {
+    if (!hasTransferWithAuthorization) {
+      throw new Error("ERC-3009 not supported");
+    }
+
+    const authorizationResult = await signAuthorization(
       client,
       { from, to, value },
       paymentRequirements
     );
 
-    if (result.type === "fallback") {
-      return {
-        ...basePayment,
-        payload: {
-          type: "signAndSendTransaction",
-          signedMessage: result.signature,
-          transactionHash: result.txHash,
-        },
-      };
-    }
-
     return {
       ...basePayment,
       payload: {
         type: "authorization",
-        signature: result.signature,
+        signature: authorizationResult.signature,
         authorization: {
           from,
           to,
           value,
-          validAfter: result.validAfter,
-          validBefore: result.validBefore,
-          nonce: result.nonce,
-          version: result.version,
+          validAfter: authorizationResult.validAfter,
+          validBefore: authorizationResult.validBefore,
+          nonce: authorizationResult.nonce,
+          version: authorizationResult.version,
         },
       },
     };
-  } else {
+  } catch {
     try {
-      console.log('[Create Payment] SIGN TRANSACTION')
+      console.log("[Create Payment] SIGN TRANSACTION");
       // Try to sign transaction without broadcasting
       const result = await signTransaction(
         client,
@@ -96,12 +101,11 @@ async function _createPayment(
         payload: {
           type: "signedTransaction",
           signedTransaction: result.signedTransaction,
-          signedMessage: result.messageSignature,
+          signedMessage: resourceSignature,
         },
       };
     } catch {
-      console.log('[Create Payment] SIGN AND SEND TRANSACTION')
-      // Fallback to signAndSendTransaction
+      console.log("[Create Payment] SIGN AND SEND TRANSACTION");
       const result = await signAndSendTransaction(
         client,
         { from, to, value },
@@ -112,7 +116,7 @@ async function _createPayment(
         ...basePayment,
         payload: {
           type: "signAndSendTransaction",
-          signedMessage: result.signature,
+          signedMessage: resourceSignature,
           transactionHash: result.txHash,
         },
       };

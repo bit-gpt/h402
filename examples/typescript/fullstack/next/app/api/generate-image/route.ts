@@ -18,9 +18,12 @@ export async function GET(request: NextRequest) {
   const prompt = url.searchParams.get("prompt");
 
   if (!prompt) {
-    return NextResponse.json({
-      error: "Missing prompt parameter"
-    }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Missing prompt parameter",
+      },
+      { status: 400 }
+    );
   }
 
   // The middleware will intercept this request and redirect to the paywall
@@ -31,9 +34,12 @@ export async function GET(request: NextRequest) {
   // (e.g., if the user has already paid)
   console.log("GET request to generate-image with prompt:", prompt);
 
-  return NextResponse.json({
-    message: "Please use POST method for image generation"
-  }, { status: 405 });
+  return NextResponse.json(
+    {
+      message: "Please use POST method for image generation",
+    },
+    { status: 405 }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +52,8 @@ export async function POST(request: NextRequest) {
     let paymentInfo = null;
     if (paymentResponse) {
       try {
-        paymentInfo = JSON.parse(paymentResponse);
+        const paymentResponseDecoded = Buffer.from(paymentResponse, "base64").toString("utf-8")
+        paymentInfo = JSON.parse(paymentResponseDecoded);
         console.log("Payment info:", paymentInfo);
       } catch (error) {
         console.error("Error parsing payment response:", error);
@@ -73,11 +80,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!prompt) {
-      return NextResponse.json({
-        success: false,
-        error: "Missing prompt",
-        message: "Please provide a prompt for image generation"
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing prompt",
+          message: "Please provide a prompt for image generation",
+        },
+        { status: 400 }
+      );
     }
 
     console.log("Generating image with prompt:", prompt);
@@ -86,7 +96,7 @@ export async function POST(request: NextRequest) {
     const requestId = generateRequestId();
 
     // Start the image generation process in the background
-    generateImageInBackground(prompt, requestId).catch(error => {
+    generateImageInBackground(prompt, requestId).catch((error) => {
       console.error("Background image generation failed:", error);
     });
 
@@ -95,30 +105,36 @@ export async function POST(request: NextRequest) {
     if (redirectUrl) {
       // Append the requestId to the redirect URL
       const finalRedirectUrl = `${redirectUrl}${requestId}`;
-      headers['X-Redirect-URL'] = finalRedirectUrl;
+      headers["X-Redirect-URL"] = finalRedirectUrl;
       console.log(`Setting redirect URL: ${finalRedirectUrl}`);
     }
 
     // Return accepted status with requestId
-    return NextResponse.json({
-      success: true,
-      message: "Image generation started",
-      requestId,
-      redirectUrl: redirectUrl ? `${redirectUrl}${requestId}` : undefined
-    }, { status: 202, headers });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Image generation started",
+        requestId,
+        redirectUrl: redirectUrl ? `${redirectUrl}${requestId}` : undefined,
+      },
+      { status: 202, headers }
+    );
   } catch (error) {
     console.error("Unexpected error in POST handler:", error);
-    return NextResponse.json({
-      success: false,
-      error: "Server error",
-      message: "An unexpected error occurred"
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Server error",
+        message: "An unexpected error occurred",
+      },
+      { status: 500 }
+    );
   }
 }
 
 // Generate a secure request ID
 function generateRequestId(): string {
-  return crypto.randomBytes(16).toString('hex');
+  return crypto.randomBytes(16).toString("hex");
 }
 
 // Function to generate the image in the background
@@ -138,7 +154,9 @@ async function generateImageInBackground(prompt: string, requestId: string) {
     const imageUrl = response.data?.[0]?.url;
 
     if (!imageUrl) {
-      throw new Error("Failed to generate image: No image URL returned from OpenAI");
+      throw new Error(
+        "Failed to generate image: No image URL returned from OpenAI"
+      );
     }
 
     // Download the image
@@ -181,7 +199,7 @@ async function generateImageInBackground(prompt: string, requestId: string) {
         JSON.stringify({
           requestId,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         })
       );
     } catch (logError) {
@@ -197,9 +215,10 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-PAYMENT, X-PAYMENT-RESPONSE',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers":
+        "Content-Type, X-PAYMENT, X-PAYMENT-RESPONSE",
     },
   });
 }

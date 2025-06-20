@@ -19,10 +19,6 @@ export async function getAssociatedTokenAddress(
     const ownerStr = owner.toString();
     const tokenProgramStr = TOKEN_PROGRAM_ADDRESS.toString();
 
-    console.log("Mint address:", mintStr);
-    console.log("Owner address:", ownerStr);
-    console.log("Token program address:", tokenProgramStr);
-
     // Decode from base58 to get the raw bytes
     const mintBytes = bs58.decode(mintStr);
     const ownerBytes = bs58.decode(ownerStr);
@@ -33,8 +29,6 @@ export async function getAssociatedTokenAddress(
       programAddress: ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
       seeds: [ownerBytes, tokenProgramBytes, mintBytes],
     });
-
-    console.log("Associated token address:", associatedTokenAddress.toString());
 
     return associatedTokenAddress;
   } catch (error) {

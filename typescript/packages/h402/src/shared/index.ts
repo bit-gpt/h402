@@ -6,3 +6,4 @@ export * from "./parseMoney.js";
 export * from "./base64.js";
 export * from "./enrichPaymentRequirements.js";
 export * from "./paywall/paywallHtml.js";
+export * from "./middleware.js";

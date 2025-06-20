@@ -28,4 +28,4 @@ echo "Building all packages with actual paywall..."
 pnpm build
 
 # Start the example app
-pnpm --filter example dev
+pnpm --filter h402-next-example dev

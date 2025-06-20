@@ -19,7 +19,6 @@ export const Dropdown = ({
   toggleDropdown,
   isDarkMode,
 }: DropdownProps) => {
-  console.log("isDarkMode", isDarkMode);
   if (!selected.id) return null;
   return (
     <div className="mb-4">

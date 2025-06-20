@@ -2,7 +2,7 @@ import { MiddlewareConfig, PaymentRequirements } from "@bit-gpt/h402/types";
 import { toJsonSafe } from "@bit-gpt/h402/shared";
 import { FacilitatorResponse, VerifyResponse } from "@bit-gpt/h402/types";
 import { useFacilitator } from "@bit-gpt/h402/verify";
-import { safeBase64Decode } from "@bit-gpt/h402/shared";
+import { safeBase64Decode, safeBase64Encode } from "@bit-gpt/h402/shared";
 import { enrichPaymentRequirements } from "@bit-gpt/h402/shared";
 import { paywallHtml } from "@bit-gpt/h402/shared";
 import { NextRequest, NextResponse } from "next/server.js";
@@ -24,14 +24,17 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
    */
   const createApiPaymentRequiredResponse = (
     error: string,
-    paymentRequirements: PaymentRequirements[],
+    paymentRequirements: PaymentRequirements[]
   ) => {
     return NextResponse.json(
       {
         error,
-        paymentRequirements: toJsonSafe(paymentRequirements),
+        h402Version: 1,
+        accepts: Array.isArray(paymentRequirements)
+          ? paymentRequirements.map((req) => toJsonSafe(req))
+          : [toJsonSafe(paymentRequirements)],
       },
-      { status: 402 },
+      { status: 402, headers: { "Content-Type": "application/json" } }
     );
   };
 
@@ -40,7 +43,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
    */
   const handleBrowserPaymentRequired = async (
     request: NextRequest,
-    paymentRequirements: PaymentRequirements[],
+    paymentRequirements: PaymentRequirements[]
   ) => {
     // Enrich payment requirements with metadata
     const enrichedRequirements =
@@ -52,7 +55,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     // Insert the script right before the closing </head> tag
     const modifiedHtml = paywallHtml.replace(
       "</head>",
-      `${injectScript}</head>`,
+      `${injectScript}</head>`
     );
 
     return new NextResponse(modifiedHtml, {
@@ -89,7 +92,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
         ? handleBrowserPaymentRequired(request, paymentRequirements)
         : createApiPaymentRequiredResponse(
             "Payment required",
-            paymentRequirements,
+            paymentRequirements
           );
     }
 
@@ -104,7 +107,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
       const { namespace, networkId, scheme, resource } = paymentPayload;
 
       console.log(
-        `[Payment] Decoded payload: namespace=${namespace}, networkId=${networkId}, scheme=${scheme}, resource=${resource}`,
+        `[Payment] Decoded payload: namespace=${namespace}, networkId=${networkId}, scheme=${scheme}, resource=${resource}`
       );
 
       // Find matching payment requirements
@@ -113,7 +116,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
           req.namespace === namespace &&
           req.networkId === networkId &&
           req.scheme === scheme &&
-          req.resource === resource,
+          req.resource === resource
       );
 
       if (matchingRequirements.length > 0) {
@@ -178,8 +181,10 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
         };
       }
 
-      // Add payment response header
-      response.headers.set("X-PAYMENT-RESPONSE", JSON.stringify(responseData));
+      // Add payment response header (encoded in base64 as expected by decodeXPaymentResponse)
+      const responseDataJson = JSON.stringify(responseData);
+      const base64Response = safeBase64Encode(responseDataJson);
+      response.headers.set("X-PAYMENT-RESPONSE", base64Response);
       return response;
     } catch (error) {
       const errorMessage = `Payment settlement failed: ${
