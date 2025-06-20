@@ -30,3 +30,11 @@ export type MiddlewareConfig = {
   routes: Record<string, RouteConfig>;
   facilitatorUrl?: string;
 };
+
+export type RoutesConfig = Record<string, Price | RouteConfig>;
+
+export interface RoutePattern {
+  verb: string;
+  pattern: RegExp;
+  config: RouteConfig;
+}

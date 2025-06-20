@@ -1,4 +1,5 @@
 // Re-export all Solana scheme handlers
+export * as utils from "./utils.js";
 export * from "./client.js";
 export * from "./facilitator.js";
 
