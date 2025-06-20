@@ -12,16 +12,16 @@ export type CreateHeaders = () => Promise<{
   settle: Record<string, string>;
 }>;
 
-export function useFacilitator({ url }: FacilitatorConfig) {
+export function useFacilitator(facilitator?: FacilitatorConfig) {
   async function makeRequest<T>(
     endpoint: string,
     payload: string,
     paymentRequirements: PaymentRequirements
   ): Promise<FacilitatorResponse<T>> {
-    console.log("[DEBUG-PAYMENT-FLOW] Making request to facilitator:", url);
+    console.log("[DEBUG-PAYMENT-FLOW] Making request to facilitator:", facilitator?.url);
 
     try {
-      const response = await fetch(`${url}/${endpoint}`, {
+      const response = await fetch(`${facilitator?.url}/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

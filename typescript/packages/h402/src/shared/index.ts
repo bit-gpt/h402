@@ -7,3 +7,6 @@ export * from "./base64.js";
 export * from "./enrichPaymentRequirements.js";
 export * from "./paywall/paywallHtml.js";
 export * from "./middleware.js";
+export * from "./network.js";
+export * from "./encoding.js";
+export * from "./parsePaymentRequirements.js";
