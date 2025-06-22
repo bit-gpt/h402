@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import express from "express";
 import { settle, verify } from "@bit-gpt/h402/facilitator";
-import { FacilitatorResponse, VerifyResponse, SettleResponse } from "@bit-gpt/h402/types";
+import { VerifyResponse, SettleResponse } from "@bit-gpt/h402/types";
 import { safeBase64Decode } from "@bit-gpt/h402/shared";
 
 config();
@@ -48,10 +48,7 @@ app.post("/verify", async (req: any, res: any) => {
       });
     }
 
-    res.json({
-      data: verificationResult,
-      error: undefined,
-    } as FacilitatorResponse<VerifyResponse>);
+    res.json(verificationResult as VerifyResponse);
   } catch (error) {
     // More comprehensive error logging
     console.error("[ERROR-FACILITATOR] Exception during verification:", error);

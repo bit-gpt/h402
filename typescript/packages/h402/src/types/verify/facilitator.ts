@@ -2,11 +2,6 @@ import { z } from "zod";
 import { safeBase64Decode, safeBase64Encode } from "../../shared/index.js";
 import { PaymentRequirementsSchema, SettleResponse } from "./h402Specs.js";
 
-export type FacilitatorResponse<T> = {
-  data: T | null;
-  error?: string;
-};
-
 export const facilitatorRequestSchema = z.object({
   paymentHeader: z.string(),
   paymentRequirements: PaymentRequirementsSchema,

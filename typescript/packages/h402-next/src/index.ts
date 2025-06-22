@@ -1,6 +1,6 @@
 import { MiddlewareConfig, PaymentRequirements } from "@bit-gpt/h402/types";
 import { toJsonSafe } from "@bit-gpt/h402/shared";
-import { FacilitatorResponse, VerifyResponse } from "@bit-gpt/h402/types";
+import { VerifyResponse } from "@bit-gpt/h402/types";
 import { useFacilitator } from "@bit-gpt/h402/verify";
 import { safeBase64Decode, safeBase64Encode } from "@bit-gpt/h402/shared";
 import { enrichPaymentRequirements } from "@bit-gpt/h402/shared";
@@ -97,7 +97,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     }
 
     // Try to verify the payment
-    let verificationResult: FacilitatorResponse<VerifyResponse> | null = null;
+    let verificationResult: VerifyResponse | null = null;
     let selectedRequirement = null;
 
     try {
@@ -123,7 +123,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
         // Try each matching requirement until one succeeds
         for (const requirement of matchingRequirements) {
           const result = await verify(paymentHeader, requirement);
-          if (!result.error) {
+          if (!result.isValid) {
             verificationResult = result;
             selectedRequirement = requirement;
             break;
@@ -140,9 +140,9 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
     console.log("selectedRequirement", selectedRequirement);
 
     // If no successful verification yet, return error
-    if (!verificationResult || verificationResult.error) {
+    if (!verificationResult || !verificationResult.isValid) {
       const errorMessage =
-        verificationResult?.error ||
+        verificationResult?.errorMessage ||
         "Payment verification failed: Invalid payment payload";
       return isHtmlRequest
         ? handleBrowserPaymentRequired(request, paymentRequirements)
@@ -151,7 +151,7 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
 
     // Payment verified, check if settlement is needed
     try {
-      const paymentType = verificationResult.data?.type;
+      const paymentType = verificationResult.type;
       const response = NextResponse.next();
       let responseData;
 
@@ -169,15 +169,15 @@ export function h402NextMiddleware(config: MiddlewareConfig) {
 
         responseData = {
           success: true,
-          transaction: settlement.data?.transaction,
-          namespace: settlement.data?.namespace,
-          payer: settlement.data?.payer,
+          transaction: settlement.transaction,
+          namespace: settlement.namespace,
+          payer: settlement.payer,
         };
       } else {
         // Already verified/settled
         responseData = {
           success: true,
-          ...verificationResult.data,
+          ...verificationResult,
         };
       }
 
