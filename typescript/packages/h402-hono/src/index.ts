@@ -132,7 +132,6 @@ export function paymentMiddleware(
       try {
         // Try to decode as base64 and check the structure
         const decoded = JSON.parse(atob(payment));
-        console.log("paymentMiddleware decoded", decoded);
         if (decoded.namespace) {
           detectedNamespace = decoded.namespace;
         }
@@ -264,11 +263,13 @@ export function paymentMiddleware(
 
     // Settle payment before processing the request, as Hono middleware does not allow us to set headers after the response has been sent
     try {
-      console.log("paymentMiddleware attempting settlement with:", JSON.stringify({ payment, selectedPaymentRequirements }, null, 2));
+      console.log(
+        "paymentMiddleware attempting settlement with:",
+        JSON.stringify({ payment, selectedPaymentRequirements }, null, 2),
+      );
       const settlement: SettleResponse = await settle(payment, selectedPaymentRequirements);
       console.log("paymentMiddleware settlement", settlement);
-      console.log("paymentMiddleware settlement.success:", settlement.success);
-      
+
       if (settlement.success) {
         const responseHeader = settleResponseHeader(settlement);
         res.headers.set("X-PAYMENT-RESPONSE", responseHeader);

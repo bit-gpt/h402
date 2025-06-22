@@ -93,14 +93,7 @@ export function withPaymentInterceptor(
         originalConfig.headers["X-PAYMENT"] = paymentHeader;
         originalConfig.headers["Access-Control-Expose-Headers"] = "X-PAYMENT-RESPONSE";
 
-        console.log("//// will do secondResponse");
-        console.log("[h402-axios debug] Payment header:", paymentHeader);
-        console.log("[h402-axios debug] Request headers:", originalConfig.headers);
-        console.log("[h402-axios debug] Request URL:", originalConfig.url);
-        console.log("[h402-axios debug] __is402Retry:", (originalConfig as any).__is402Retry);
-        
         const secondResponse = await axiosClient.request(originalConfig);
-        console.log("////secondResponse", secondResponse);
         return secondResponse;
       } catch (paymentError) {
         return Promise.reject(paymentError);
