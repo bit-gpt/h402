@@ -18,6 +18,7 @@ import {
   RoutesConfig,
 } from "@bit-gpt/h402/types";
 import { useFacilitator } from "@bit-gpt/h402/verify";
+import { VerifyResponse, SettleResponse } from "@bit-gpt/h402/types";
 
 /**
  * Creates a payment middleware factory for Hono
@@ -131,6 +132,7 @@ export function paymentMiddleware(
       try {
         // Try to decode as base64 and check the structure
         const decoded = JSON.parse(atob(payment));
+        console.log("paymentMiddleware decoded", decoded);
         if (decoded.namespace) {
           detectedNamespace = decoded.namespace;
         }
@@ -156,8 +158,6 @@ export function paymentMiddleware(
           const decimals = primaryRequirement.tokenDecimals || 6; // Default to USDC decimals
           displayAmount = Number(primaryRequirement.amountRequired) / 10 ** decimals;
         }
-
-        const currentUrl = new URL(c.req.url).pathname + new URL(c.req.url).search;
 
         // Inject the payment requirements data
         const injectScript = `<script>window.h402 = { paymentRequirements: ${JSON.stringify(updatedPaymentRequirements)} }</script>`;
@@ -209,6 +209,9 @@ export function paymentMiddleware(
       updatedPaymentRequirements,
       decodedPayment,
     );
+
+    console.log("paymentMiddleware selectedPaymentRequirements", selectedPaymentRequirements);
+
     if (!selectedPaymentRequirements) {
       console.error(`[h402-hono] No matching payment requirements found for:`, {
         scheme: decodedPayment.scheme,
@@ -231,14 +234,16 @@ export function paymentMiddleware(
       );
     }
 
-    const verification = await verify(payment, selectedPaymentRequirements);
+    const verification: VerifyResponse = await verify(payment, selectedPaymentRequirements);
 
-    if (!verification.data?.isValid) {
+    console.log("paymentMiddleware verification", verification);
+
+    if (!verification.isValid) {
       return c.json(
         {
-          error: new Error(verification.data?.invalidReason),
+          error: new Error(verification.invalidReason),
           accepts: updatedPaymentRequirements,
-          payer: verification.data?.payer,
+          payer: verification.payer,
           h402Version,
         },
         402,
@@ -259,14 +264,20 @@ export function paymentMiddleware(
 
     // Settle payment before processing the request, as Hono middleware does not allow us to set headers after the response has been sent
     try {
-      const settlement = await settle(payment, selectedPaymentRequirements);
-      if (settlement.data?.success) {
-        const responseHeader = settleResponseHeader(settlement.data);
+      console.log("paymentMiddleware attempting settlement with:", JSON.stringify({ payment, selectedPaymentRequirements }, null, 2));
+      const settlement: SettleResponse = await settle(payment, selectedPaymentRequirements);
+      console.log("paymentMiddleware settlement", settlement);
+      console.log("paymentMiddleware settlement.success:", settlement.success);
+      
+      if (settlement.success) {
+        const responseHeader = settleResponseHeader(settlement);
         res.headers.set("X-PAYMENT-RESPONSE", responseHeader);
       } else {
-        throw new Error(settlement.data?.error);
+        console.log("paymentMiddleware settlement failed, settlement:", settlement);
+        throw new Error(settlement.error || "Settlement failed with undefined data");
       }
     } catch (error) {
+      console.log("paymentMiddleware settlement error:", error);
       res = c.json(
         {
           error: error instanceof Error ? error : new Error("Failed to settle payment"),

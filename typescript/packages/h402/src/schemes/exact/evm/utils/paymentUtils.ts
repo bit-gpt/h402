@@ -70,6 +70,17 @@ function validatePaymentPayload(obj: EvmPaymentPayload): EvmPaymentPayload {
         throw new Error("Invalid authorization payload values");
       }
       break;
+    case "signedTransaction": {
+      if (
+        !obj.payload.signedTransaction ||
+        typeof obj.payload.signedTransaction !== "string" ||
+        !obj.payload.signedMessage ||
+        !obj.payload.signedMessage.startsWith("0x")
+      ) {
+        throw new Error("Invalid signed transaction payload values");
+      }
+      break;
+    }
     case "signAndSendTransaction":
       if (
         !obj.payload.transactionHash ||

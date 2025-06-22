@@ -206,7 +206,6 @@ export function createRouteConfigFromPrice(
   const paymentRequirements: PaymentRequirements = {
     scheme: "exact",
     namespace: network === "solana" ? "solana" : "evm",
-    maxAmountRequired: BigInt(maxAmountRequired),
     resource: "" as any, // Will be filled in by the middleware
     description: `Payment required (${network})`,
     mimeType: "application/json",
@@ -214,8 +213,8 @@ export function createRouteConfigFromPrice(
     tokenAddress: asset.address as any,
     outputSchema: null,
     extra: asset.eip712,
-    amountRequired: 0,
-    amountRequiredFormat: "humanReadable",
+    amountRequired: Number(maxAmountRequired),
+    amountRequiredFormat: "smallestUnit",
     networkId: getNetworkId(network).toString(),
   };
 
