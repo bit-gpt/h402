@@ -1,12 +1,14 @@
 import axios from "axios";
 import { config } from "dotenv";
-import { type Hex } from "viem";
+import { createWalletClient, http, publicActions, type Hex } from "viem";
 import { withPaymentInterceptor, decodeXPaymentResponse } from "h402-axios";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import { createKeyPairSignerFromBytes } from "@solana/signers";
 import type { TransactionModifyingSigner } from "@solana/signers";
 import type { Transaction } from "@solana/transactions";
+import { privateKeyToAccount } from "viem/accounts";
+import { bsc } from "viem/chains";
 
 config();
 
@@ -21,14 +23,12 @@ if (!baseURL || !evmPrivateKey || !endpointPath) {
 }
 
 // EVM client
-/*
 const evmAccount = privateKeyToAccount(evmPrivateKey);
 const evmClient = createWalletClient({
   account: evmAccount,
   transport: http(),
   chain: bsc,
 }).extend(publicActions);
-*/
 
 // Solana client
 const solanaKeypair = Keypair.fromSecretKey(bs58.decode(solanaPrivateKey));
@@ -67,7 +67,7 @@ const api = withPaymentInterceptor(
     baseURL,
   }),
   {
-    // evmClient,
+    evmClient,
     solanaClient,
   },
 );

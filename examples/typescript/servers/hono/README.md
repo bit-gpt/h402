@@ -1,14 +1,13 @@
-# x402-hono Example Server
+# h402-hono Example Server
 
-This is an example Hono server that demonstrates how to use the `x402-hono` middleware to implement paywall functionality in your API endpoints.
+This is an example Hono server that demonstrates how to use the `h402-hono` middleware to implement paywall functionality in your API endpoints.
 
 ## Prerequisites
 
 - Node.js v20+ (install via [nvm](https://github.com/nvm-sh/nvm))
 - pnpm v10 (install via [pnpm.io/installation](https://pnpm.io/installation))
 - A valid Ethereum address for receiving payments
-- Coinbase Developer Platform API Key & Secret (if accepting payments on Base mainnet)
--- get them here [https://portal.cdp.coinbase.com/projects](https://portal.cdp.coinbase.com/projects)
+- Coinbase Developer Platform API Key & Secret (if accepting payments on Base mainnet) -- get them here [https://portal.cdp.coinbase.com/projects](https://portal.cdp.coinbase.com/projects)
 
 ## Setup
 
