@@ -1,8 +1,8 @@
-import {PublicActions} from "viem";
-import {PaymentRequirements} from "../types";
-import {evm, solana} from "../shared/index.js";
-import {exact} from "../schemes/index.js";
-import {parsePaymentRequirementsForAmount} from "../shared/parsePaymentRequirements.js";
+import { PublicActions } from "viem";
+import { PaymentRequirements } from "../types";
+import { evm } from "../shared/index.js";
+import { exact } from "../schemes/index.js";
+import { parsePaymentRequirementsForAmount } from "../shared/parsePaymentRequirements.js";
 import { PaymentClient } from "../types";
 
 /**
@@ -39,7 +39,7 @@ import { PaymentClient } from "../types";
 export async function createPaymentHeader(
   client: PaymentClient,
   h402Version: number,
-  paymentRequirements: PaymentRequirements,
+  paymentRequirements: PaymentRequirements
 ): Promise<string> {
   if (!paymentRequirements.namespace) {
     throw new Error("Payment details namespace is required");
@@ -48,7 +48,7 @@ export async function createPaymentHeader(
   // Conditionally use the appropriate client based on the payment namespace
   if (paymentRequirements.namespace === "solana") {
     paymentRequirements = await parsePaymentRequirementsForAmount(
-      paymentRequirements,
+      paymentRequirements
     );
   } else {
     // Default to EVM client for EVM payments

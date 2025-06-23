@@ -71,7 +71,6 @@ export function withPaymentInterceptor(
         } else if (paymentClient.solanaClient && !paymentClient.evmClient) {
           namespace = "solana";
         }
-        // If both clients are available, let selectPaymentRequirements choose based on stablecoin preference
 
         const chainId = paymentClient.evmClient?.chain?.id;
 
@@ -81,6 +80,16 @@ export function withPaymentInterceptor(
           chainId ? ChainIdToEvmNetwork[chainId] : undefined,
           "exact",
         );
+
+        // Validate that the selected payment requirements match the available client
+        if (namespace && selectedPaymentRequirements.namespace !== namespace) {
+          const availableNamespaces = parsed.map(req => req.namespace).join(", ");
+          throw new Error(
+            `No compatible payment requirements found. ` +
+              `Client supports: ${namespace}, but available payment options are: ${availableNamespaces}. ` +
+              `Please ensure your payment client supports one of the available payment methods.`,
+          );
+        }
 
         const paymentHeader = await createPaymentHeader(
           paymentClient,
