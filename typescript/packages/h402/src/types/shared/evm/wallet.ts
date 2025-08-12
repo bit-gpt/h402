@@ -15,7 +15,7 @@ import type {
   PublicClient,
   LocalAccount,
 } from "viem";
-import { baseSepolia, avalancheFuji, bsc } from "viem/chains";
+import { base, avalanche, baseSepolia, avalancheFuji, iotex, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { type Hex } from "viem";
 import { EvmNetworkToChainId } from "../network.js";
@@ -50,17 +50,34 @@ export function getPublicClient(
   networkId: string
 ): ConnectedClient<Transport, any, undefined> {
   switch (networkId) {
-    /*
     case EvmNetworkToChainId.get("base")?.toString():
-      return createClientSepolia();
+      return createClientBase();
     case EvmNetworkToChainId.get("avalanche")?.toString():
-      return createClientAvalancheFuji();
-    */
+      return createClientAvalanche();
+    case EvmNetworkToChainId.get("iotex")?.toString():
+        return createClientIotex();
     case EvmNetworkToChainId.get("bsc")?.toString():
       return createClientBsc();
     default:
       throw new Error(`Unsupported network ID: ${networkId}`);
   }
+}
+
+
+/**
+ * Creates a public client configured for the Base
+ *
+ * @returns A public client instance connected to Base
+ */
+export function createClientBase(): ConnectedClient<
+  Transport,
+  typeof base,
+  undefined
+> {
+  return createPublicClient({
+    chain: base,
+    transport: http(),
+  }).extend(publicActions);
 }
 
 /**
@@ -75,6 +92,22 @@ export function createClientSepolia(): ConnectedClient<
 > {
   return createPublicClient({
     chain: baseSepolia,
+    transport: http(),
+  }).extend(publicActions);
+}
+
+/**
+ * Creates a public client configured for the Avalanche
+ *
+ * @returns A public client instance connected to Avalanche
+ */
+export function createClientAvalanche(): ConnectedClient<
+  Transport,
+  typeof avalanche,
+  undefined
+> {
+  return createPublicClient({
+    chain: avalanche,
     transport: http(),
   }).extend(publicActions);
 }
@@ -96,6 +129,22 @@ export function createClientAvalancheFuji(): ConnectedClient<
 }
 
 /**
+ * Creates a public client configured for the Iotex
+ *
+ * @returns A public client instance connected to Iotex
+ */
+export function createClientIotex(): ConnectedClient<
+  Transport,
+  typeof iotex,
+  undefined
+> {
+  return createPublicClient({
+    chain: iotex,
+    transport: http(),
+  }).extend(publicActions);
+}
+
+/**
  * Creates a public client configured for the BSC mainnet
  *
  * @returns A public client instance connected to BSC
@@ -112,10 +161,26 @@ export function createClientBsc(): ConnectedClient<
 }
 
 /**
- * Creates a wallet client configured for the Base Sepolia testnet with a private key
+ * Creates a wallet client configured for the Base with a private key
  *
  * @param privateKey - The private key to use for signing transactions
- * @returns A wallet client instance connected to Base Sepolia with the provided private key
+ * @returns A wallet client instance connected to Base with the provided private key
+ */
+export function createSignerBase(
+  privateKey: Hex
+): SignerWallet<typeof base> {
+  return createWalletClient({
+    chain: base,
+    transport: http(),
+    account: privateKeyToAccount(privateKey),
+  }).extend(publicActions);
+}
+
+/**
+ * Creates a wallet client configured for the Base with a private key
+ *
+ * @param privateKey - The private key to use for signing transactions
+ * @returns A wallet client instance connected to Base with the provided private key
  */
 export function createSignerSepolia(
   privateKey: Hex
@@ -128,7 +193,23 @@ export function createSignerSepolia(
 }
 
 /**
- * Creates a wallet client configured for the Avalanche Fuji testnet with a private key
+ * Creates a wallet client configured for the Avalanche with a private key
+ *
+ * @param privateKey - The private key to use for signing transactions
+ * @returns A wallet client instance connected to Avalanche with the provided private key
+ */
+export function createSignerAvalanche(
+  privateKey: Hex
+): SignerWallet<typeof avalanche> {
+  return createWalletClient({
+    chain: avalanche,
+    transport: http(),
+    account: privateKeyToAccount(privateKey),
+  }).extend(publicActions);
+}
+
+/**
+ * Creates a wallet client configured for the Avalanche with a private key
  *
  * @param privateKey - The private key to use for signing transactions
  * @returns A wallet client instance connected to Avalanche Fuji with the provided private key
@@ -138,6 +219,22 @@ export function createSignerAvalancheFuji(
 ): SignerWallet<typeof avalancheFuji> {
   return createWalletClient({
     chain: avalancheFuji,
+    transport: http(),
+    account: privateKeyToAccount(privateKey),
+  }).extend(publicActions);
+}
+
+/**
+ * Creates a wallet client configured for the Iotex with a private key
+ *
+ * @param privateKey - The private key to use for signing transactions
+ * @returns A wallet client instance connected to Iotex with the provided private key
+ */
+export function createSignerIotex(
+  privateKey: Hex
+): SignerWallet<typeof iotex> {
+  return createWalletClient({
+    chain: iotex,
     transport: http(),
     account: privateKeyToAccount(privateKey),
   }).extend(publicActions);

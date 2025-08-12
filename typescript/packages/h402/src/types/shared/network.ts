@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Define network types
 export const EVMNetworkSchema = z.enum([
-  /*"base", "avalanche", "iotex",*/ "bsc",
+  "base", "avalanche", "iotex", "bsc",
 ]);
 
 export const SolanaNetworkSchema = z.enum(["solana"]);
@@ -16,9 +16,9 @@ export type Network = z.infer<typeof NetworkSchema>;
 
 // Network categorization
 export const SupportedEVMNetworks: EVMNetwork[] = [
-  //"base",
-  //"avalanche",
-  //"iotex",
+  "base",
+  "avalanche",
+  "iotex",
   "bsc",
 ];
 
@@ -31,9 +31,9 @@ export const SupportedNetworks: Network[] = [
 
 // EVM-specific mappings
 export const EvmNetworkToChainId = new Map<EVMNetwork, number>([
-  // ["base", 8453],
-  // ["avalanche", 43114],
-  // ["iotex", 4689],
+  ["base", 8453],
+  ["avalanche", 43114],
+  ["iotex", 4689],
   ["bsc", 56],
 ]);
 
@@ -68,9 +68,9 @@ export const isSolanaNetwork = (network: Network): network is SolanaNetwork => {
 // Network metadata (optional - for display purposes)
 export const NetworkMetadata = {
   // EVM Networks
-  // base: { name: "Base", type: "evm" },
-  // avalanche: { name: "Avalanche", type: "evm" },
-  // iotex: { name: "IoTeX", type: "evm" },
+  base: { name: "Base", type: "evm" },
+  avalanche: { name: "Avalanche", type: "evm" },
+  iotex: { name: "IoTeX", type: "evm" },
   bsc: { name: "BNB Smart Chain", type: "evm" },
   // Solana Networks
   solana: { name: "Solana", type: "solana" },
