@@ -1,6 +1,7 @@
 import {
   address,
   appendTransactionMessageInstruction,
+  prependTransactionMessageInstruction,
   type CompilableTransactionMessage,
   compileTransaction,
   createSolanaRpc,
@@ -12,7 +13,6 @@ import {
   signature as solanaSignature,
   type TransactionMessageWithBlockhashLifetime,
 } from "@solana/kit";
-
 import {
   getCreateAssociatedTokenIdempotentInstruction,
   getTransferCheckedInstruction,
@@ -27,6 +27,11 @@ import {
   getTransferSolInstruction,
   SYSTEM_PROGRAM_ADDRESS,
 } from "@solana-program/system";
+import {
+  estimateComputeUnitLimitFactory,
+  getSetComputeUnitLimitInstruction,
+  setTransactionMessageComputeUnitPrice,
+} from "@solana-program/compute-budget";
 import {
   ExactSolanaPayload,
   Namespace,
@@ -52,11 +57,9 @@ async function getTokenProgramForMint(
         encoding: "jsonParsed",
       })
       .send();
-
     if (!mintInfo || !mintInfo.data) {
       throw new Error(`Token mint not found: ${mintAddress}`);
     }
-
     if (mintInfo.owner === TOKEN_2022_PROGRAM_ADDRESS) {
       console.log(`[Token Detection] ${mintAddress} is Token-2022`);
       return TOKEN_2022_PROGRAM_ADDRESS;
@@ -81,20 +84,21 @@ async function buildPaymentTransaction(
   CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
 > {
   const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
-  const latestBlockhash = (await rpc.getLatestBlockhash().send()).value;
   const payerSigner = createAddressSigner(address(payerPublicKey));
   const payTo = address(requirements.payToAddress);
   const amount = BigInt(requirements.amountRequired.toString());
-
   const isNative =
     !requirements.tokenAddress ||
     requirements.tokenAddress === SYSTEM_PROGRAM_ADDRESS.toString();
 
-  const tx = pipe(
+  // Create base transaction for simulation with compute unit price
+  const txToSimulate = pipe(
     createTransactionMessage({ version: 0 }),
-    (t) => setTransactionMessageFeePayer(payerSigner.address, t),
-    (t) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, t)
+    (t) => setTransactionMessageComputeUnitPrice(1, t), // 1 microlamport priority fee
+    (t) => setTransactionMessageFeePayer(payerSigner.address, t)
   );
+
+  let txWithInstructions;
 
   if (isNative) {
     const instruction = getTransferSolInstruction({
@@ -102,7 +106,7 @@ async function buildPaymentTransaction(
       destination: payTo,
       amount,
     });
-    return appendTransactionMessageInstruction(instruction, tx);
+    txWithInstructions = appendTransactionMessageInstruction(instruction, txToSimulate);
   } else {
     const mint = address(requirements.tokenAddress);
     
@@ -114,11 +118,9 @@ async function buildPaymentTransaction(
         encoding: "jsonParsed",
       })
       .send();
-
     if (!mintInfo || !mintInfo.data) {
       throw new Error(`Token mint not found: ${requirements.tokenAddress}`);
     }
-
     const parsedData = mintInfo.data as any;
     const decimals = parsedData?.parsed?.info?.decimals;
     
@@ -138,7 +140,6 @@ async function buildPaymentTransaction(
       payTo,
       tokenProgram
     );
-
     const createATAIx = isToken2022
       ? getCreateAssociatedTokenIdempotentInstructionToken2022({
           payer: payerSigner,
@@ -152,7 +153,6 @@ async function buildPaymentTransaction(
           owner: payTo,
           ata: receiverATA,
         });
-
     const transferIx = isToken2022
       ? getTransferCheckedInstructionToken2022({
           source: senderATA,
@@ -170,10 +170,29 @@ async function buildPaymentTransaction(
           amount,
           decimals,
         });
-
-    const withCreateATA = appendTransactionMessageInstruction(createATAIx, tx);
-    return appendTransactionMessageInstruction(transferIx, withCreateATA);
+    
+    const withCreateATA = appendTransactionMessageInstruction(createATAIx, txToSimulate);
+    txWithInstructions = appendTransactionMessageInstruction(transferIx, withCreateATA);
   }
+
+  // Estimate compute unit limit (gas limit) via simulation
+  const estimateComputeUnitLimit = estimateComputeUnitLimitFactory({ rpc });
+  const estimatedUnits = await estimateComputeUnitLimit(txWithInstructions);
+
+  // Get blockhash
+  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+
+  // Finalize transaction by prepending compute unit limit and adding blockhash
+  const finalTx = pipe(
+    txWithInstructions,
+    (t) => prependTransactionMessageInstruction(
+      getSetComputeUnitLimitInstruction({ units: estimatedUnits }),
+      t
+    ),
+    (t) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, t)
+  );
+
+  return finalTx;
 }
 
 async function sendAndCreatePayload(
@@ -184,13 +203,11 @@ async function sendAndCreatePayload(
   requirements: PaymentRequirements
 ): Promise<SolanaPaymentPayload> {
   const transaction = compileTransaction(message);
-
-  // Use facilitator proxy RPC so that requests are made from a server
   const rpc = createSolanaRpc(`${getFacilitator()}/solana-rpc`);
-
   let txSignature: string;
   let base64WireTx = "";
   let payload: ExactSolanaPayload;
+  
   const waitForConfirmation = async (sig: string) => {
     return rpc
       .getSignatureStatuses([solanaSignature(sig)], {
@@ -198,12 +215,11 @@ async function sendAndCreatePayload(
       })
       .send();
   };
-
+  
   if (typeof client.signTransaction === "function") {
     console.log("SIGN TRANSACTION");
     const [signedTx] = await client.signTransaction([transaction]);
     base64WireTx = getBase64EncodedWireTransaction(signedTx);
-    // const response = await rpc.sendTransaction(base64WireTx, {encoding: 'base64'}).send();
     txSignature = solanaSignature(
       bs58.encode(signedTx.signatures[message.feePayer.address] as Uint8Array)
     );
@@ -213,7 +229,6 @@ async function sendAndCreatePayload(
       transaction: base64WireTx,
     };
   } else if (typeof client.signAndSendTransaction === "function") {
-    // Fallback
     console.log("SIGN AND SEND TRANSACTION");
     const [sigBytes] = await client.signAndSendTransaction([transaction]);
     const uint8Array = new Uint8Array(sigBytes);
@@ -229,7 +244,7 @@ async function sendAndCreatePayload(
       "Signer must implement signTransaction or signAndSendTransaction"
     );
   }
-
+  
   const basePayload = {
     h402Version: h402Version,
     scheme: "exact" as any,
@@ -237,7 +252,7 @@ async function sendAndCreatePayload(
     networkId: "mainnet",
     resource: requirements.resource ?? `402 signature ${Date.now()}`,
   };
-
+  
   return { ...basePayload, payload };
 }
 
@@ -250,20 +265,19 @@ async function createPayment(
   if (!requirements.payToAddress) throw new Error("Missing payToAddress");
   if (requirements.amountRequired === undefined)
     throw new Error("Missing amountRequired");
-
+  
   const txMessage = await buildPaymentTransaction(
     requirements,
     client.publicKey
   );
-
+  
   const payload = await sendAndCreatePayload(
     h402Version,
     txMessage,
     client,
     requirements
   );
-
-  // Use browser-compatible approach for base64 encoding
+  
   const jsonString = JSON.stringify(payload);
   console.log("[DEBUG] Encoding payload to base64");
   return btoa(jsonString);

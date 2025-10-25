@@ -1,0 +1,12 @@
+{
+  "targetURL": "https://httpbin.org",
+  "amount": 0.01,
+  "evmAddress": "0x0000000000000000000000000000000000000000",
+  "network": "base",
+  "facilitator": {
+      "url": "http://localhost:3002"
+  },
+  "headers": {
+    "X-Example-Header": "example-value"
+  }
+}

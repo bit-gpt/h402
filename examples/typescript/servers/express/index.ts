@@ -9,8 +9,25 @@ const evmAddress = process.env.EVM_ADDRESS as `0x${string}`;
 const solanaAddress = process.env.SOLANA_ADDRESS as string;
 const network = process.env.NETWORK as Network;
 
-if (!facilitatorUrl || !evmAddress || !solanaAddress || !network) {
+if (!facilitatorUrl || !network) {
   console.error("Missing required environment variables");
+  process.exit(1);
+}
+
+if (
+  !evmAddress && !solanaAddress
+) {
+  console.error("Missing required environment variables: EVM_ADDRESS or SOLANA_ADDRESS");
+  process.exit(1);
+}
+
+if (network === "solana" && !solanaAddress) {
+  console.error("Missing required environment variable: SOLANA_ADDRESS");
+  process.exit(1);
+}
+
+if (network !== "solana" && !evmAddress) {
+  console.error("Missing required environment variable: EVM_ADDRESS");
   process.exit(1);
 }
 
@@ -22,7 +39,7 @@ app.use(
   paymentMiddleware(
     {
       // Use createRouteConfigFromPrice to construct the RouteConfig
-      "/weather": createRouteConfigFromPrice("$0.001", network, evmAddress, solanaAddress),
+      "/weather": createRouteConfigFromPrice("$0.0002", network, evmAddress, solanaAddress),
       // Example of advanced configuration with multiple payment options
       "/premium/*": {
         paymentRequirements: [
@@ -54,7 +71,7 @@ app.use(
             scheme: "exact",
             namespace: "solana",
             tokenAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC on Solana
-            amountRequired: 0.001,
+            amountRequired: 0.01,
             amountRequiredFormat: "humanReadable",
             networkId: "mainnet",
             payToAddress: solanaAddress, // Example Solana address

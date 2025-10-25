@@ -71,9 +71,12 @@ import { VerifyResponse, SettleResponse } from "@bit-gpt/h402/types";
 export function paymentMiddleware(
   routes: RoutesConfig,
   facilitator?: FacilitatorConfig,
+  options?: { asyncSettlement?: boolean }
 ) {
   const { verify, settle } = useFacilitator(facilitator);
   const h402Version = 1;
+
+  const asyncSettlement = options?.asyncSettlement || false;
 
   // Pre-compile route patterns to regex and extract verbs
   const routePatterns = computeRoutePatterns(routes);
@@ -240,6 +243,47 @@ export function paymentMiddleware(
         accepts: updatedPaymentRequirements,
         payer: verification.payer,
       });
+      return;
+    }
+
+    // NEW: If streaming mode, don't intercept res.end()
+    if (asyncSettlement) {
+      // Store settlement as a promise on res object
+      const settlementPromise = (async () => {
+        // Proceed to next middleware first
+        await next();
+
+        // Only settle if response is successful
+        if (res.statusCode >= 400) {
+          return;
+        }
+
+        // Skip settlement for already-executed transactions
+        if (verification.type === "transaction") {
+          console.log("Payment already executed, skipping settlement");
+          return;
+        }
+
+        // Perform settlement
+        try {
+          console.log("paymentMiddleware attempting settlement");
+          const settlement: SettleResponse = await settle(payment, selectedPaymentRequirements);
+          console.log("paymentMiddleware settlement", settlement);
+
+          if (settlement.success) {
+            const responseHeader = settleResponseHeader(settlement);
+            res.setHeader("X-PAYMENT-RESPONSE", responseHeader);
+          } else {
+            throw new Error(settlement.error || "Settlement failed");
+          }
+        } catch (error) {
+          console.log("paymentMiddleware settlement error:", error);
+          throw error;
+        }
+      })();
+
+      // Store promise so proxy can await it
+      (res as any).__h402Settlement = settlementPromise;
       return;
     }
 

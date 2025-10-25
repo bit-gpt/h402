@@ -10,3 +10,4 @@ export * from "./middleware.js";
 export * from "./network.js";
 export * from "./encoding.js";
 export * from "./parsePaymentRequirements.js";
+export * from "./client.js";

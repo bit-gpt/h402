@@ -113,4 +113,4 @@ export function withPaymentInterceptor(
   return axiosClient;
 }
 
-export { decodeXPaymentResponse } from "@bit-gpt/h402/shared";
+export { decodeXPaymentResponse, createEvmClient, createSolanaClient, type PaymentClient } from "@bit-gpt/h402/shared";

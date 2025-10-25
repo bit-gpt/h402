@@ -36,7 +36,7 @@ pnpm dev
 
 The example demonstrates how to:
 
-1. Create a wallet client using viem
+1. Create a wallet client
 2. Wrap the native fetch function with h402 payment handling
 3. Make a request to a paid endpoint
 4. Handle the response or any errors
@@ -45,28 +45,30 @@ The example demonstrates how to:
 
 ```typescript
 import { config } from "dotenv";
-import { createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { wrapFetchWithPayment } from "h402-fetch";
+import { wrapFetchWithPayment, createEvmClient, PaymentClient } from "@bit-gpt/h402-fetch";
 import { base } from "viem/chains";
 
 config();
 
 const { RESOURCE_SERVER_URL, PRIVATE_KEY, ENDPOINT_PATH } = process.env;
+const privateKey = PRIVATE_KEY as `0x${string}`;
+const baseURL = RESOURCE_SERVER_URL;
+const endpointPath = ENDPOINT_PATH as string;
+const url = `${baseURL}${endpointPath}`; 
 
 // Create wallet client
-const account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
-const client = createWalletClient({
-  account,
-  transport: http(),
-  chain: base as Chain,
-});
+const client = createEvmClient(privateKey, base);
+
+// Create payment client
+const paymentClient: PaymentClient = {
+  evmClient: client,
+};
 
 // Wrap fetch with payment handling
-const fetchWithPay = wrapFetchWithPayment(fetch, client);
+const fetchWithPay = wrapFetchWithPayment(fetch, paymentClient);
 
 // Make request to paid endpoint
-fetchWithPay(`${RESOURCE_SERVER_URL}${ENDPOINT_PATH}`, {
+fetchWithPay(url, {
   method: "GET",
 })
   .then(async response => {

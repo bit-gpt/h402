@@ -94,7 +94,6 @@ export function findMatchingRoute(
 export function getDefaultAsset(network: Network) {
   const networkId = getNetworkId(network);
   const address = getUsdcAddressForChain(networkId);
-  console.log("networkIdddddddddddddd", network);
 
   return {
     address: address as `0x${string}`, // Type assertion for compatibility

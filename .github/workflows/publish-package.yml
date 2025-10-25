@@ -13,6 +13,7 @@ on:
       - 'typescript/packages/h402-fetch/**'
       - 'typescript/packages/h402-axios/**'
       - 'typescript/packages/h402-next/**'
+      - 'typescript/packages/h402-proxy/**'
   push:
     paths:
       - 'typescript/packages/h402/**'
@@ -20,7 +21,7 @@ on:
       - 'typescript/packages/h402-fetch/**'
       - 'typescript/packages/h402-axios/**'
       - 'typescript/packages/h402-next/**'
-
+      - 'typescript/packages/h402-proxy/**'
 jobs:
   build-h402:
     uses: ./.github/workflows/build-package.yml
@@ -36,6 +37,7 @@ jobs:
         - h402-fetch
         - h402-axios
         - h402-next
+        - h402-proxy
 
     uses: ./.github/workflows/build-package.yml
     with:
@@ -57,6 +59,7 @@ jobs:
           - h402-fetch
           - h402-axios
           - h402-next
+          - h402-proxy
 
     permissions:
       packages: write

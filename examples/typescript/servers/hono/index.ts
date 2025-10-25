@@ -10,8 +10,25 @@ const evmAddress = process.env.EVM_ADDRESS as `0x${string}`;
 const solanaAddress = process.env.SOLANA_ADDRESS as string;
 const network = process.env.NETWORK as Network;
 
-if (!facilitatorUrl || !evmAddress || !solanaAddress || !network) {
+if (!facilitatorUrl || !network) {
   console.error("Missing required environment variables");
+  process.exit(1);
+}
+
+if (
+  !evmAddress && !solanaAddress
+) {
+  console.error("Missing required environment variables: EVM_ADDRESS or SOLANA_ADDRESS");
+  process.exit(1);
+}
+
+if (network === "solana" && !solanaAddress) {
+  console.error("Missing required environment variable: SOLANA_ADDRESS");
+  process.exit(1);
+}
+
+if (network !== "solana" && !evmAddress) {
+  console.error("Missing required environment variable: EVM_ADDRESS");
   process.exit(1);
 }
 

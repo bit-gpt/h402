@@ -32,7 +32,7 @@ pnpm dev
 ## How It Works
 
 The example demonstrates how to:
-1. Create a wallet client using viem
+1. Create a wallet client
 2. Create an Axios instance with h402 payment handling
 3. Make a request to a paid endpoint
 4. Handle the response or any errors
@@ -41,35 +41,36 @@ The example demonstrates how to:
 
 ```typescript
 import { config } from "dotenv";
-import { createWalletClient, http, publicActions } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { withPaymentInterceptor } from "h402-axios";
+import { withPaymentInterceptor, createEvmClient, PaymentClient } from "@bit-gpt/h402-axios";
 import axios from "axios";
 import { base } from "viem/chains";
 
 config();
 
 const { RESOURCE_SERVER_URL, PRIVATE_KEY, ENDPOINT_PATH } = process.env;
+const privateKey = PRIVATE_KEY as `0x${string}`;
+const baseURL = RESOURCE_SERVER_URL;
+const endpointPath = ENDPOINT_PATH as string;
 
 // Create wallet client
-const account = privateKeyToAccount(PRIVATE_KEY as "0x${string}");
-const client = createWalletClient({
-  account,
-  transport: http(),
-  chain: base as Chain,
-}).extend(publicActions);
+const client = createEvmClient(privateKey, base);
+
+// Create payment client
+const paymentClient: PaymentClient = {
+  evmClient: client,
+};
 
 // Create Axios instance with payment handling
 const api = withPaymentInterceptor(
   axios.create({
-    baseURL: RESOURCE_SERVER_URL,
+    baseURL,
   }),
-  client
+  paymentClient
 );
 
 // Make request to paid endpoint
 api
-  .get(ENDPOINT_PATH)
+  .get(endpointPath)
   .then(response => {
     console.log(response.headers);
     console.log(response.data);
