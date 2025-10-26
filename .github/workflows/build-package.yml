@@ -35,8 +35,7 @@ jobs:
       - run: |
           #!/bin/bash
 
-          LIBRARIES="${{ inputs.libraries }}"
-          echo "${{ inputs.libraries }}" | \
+          echo '${{ inputs.libraries }}' | \
           jq -c '.[]' | \
           while read -r library; do
             gh run download \
