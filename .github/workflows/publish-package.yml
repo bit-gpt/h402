@@ -86,7 +86,10 @@ jobs:
       packages: write
     
     steps:
-      - uses: actions4gh/setup-gh@v1
+      - run: |
+          #!/bin/bash
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - uses: actions/checkout@v4
         with:
