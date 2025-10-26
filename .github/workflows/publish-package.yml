@@ -86,6 +86,8 @@ jobs:
       packages: write
     
     steps:
+      - uses: actions4gh/setup-gh@v1
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
