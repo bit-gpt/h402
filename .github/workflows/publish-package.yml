@@ -99,7 +99,7 @@ jobs:
           #!/bin/bash -ex
 
           echo '${{ fromJson(needs.get-libraries.outputs.matrix) }}' | \
-          jq -c '.[]' | \
+          jq -r '.[]' | \
           while read -r library; do
             gh run download \
               ${{ github.run_id }} \

@@ -41,7 +41,7 @@ jobs:
           #!/bin/bash -ex
 
           echo '${{ inputs.libraries }}' | \
-          jq -c '.[]' | \
+          jq -r '.[]' | \
           while read -r library; do
             gh run download \
               ${{ github.run_id }} \
