@@ -94,7 +94,7 @@ jobs:
           #!/bin/bash
 
           LIBRARIES="${{ needs.get-libraries.outputs.matrix }}"
-          echo "${{ needs.get-libraries.outputs.matrix }}" | \
+          echo "${{ fromJson(needs.get-libraries.outputs.matrix) }}" | \
           jq -c '.[]' | \
           while read -r library; do
             gh run download \
