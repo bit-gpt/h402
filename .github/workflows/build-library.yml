@@ -1,61 +1,42 @@
-name: Build Package
+name: build package
 on:
   workflow_call:
     inputs:
       name:
         type: string
         required: true
-      libraries:
-        type: string
-        required: true
       registry-url:
         type: string
         default: "https://npm.pkg.github.com"
+      wants-h402:
+        type: boolean
+        default: false
 
 jobs:
   build:
     runs-on:
       group: arc-runners
 
+    permissions:
+      contents: read
+      packages: read
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-  
+
       - uses: actions/download-artifact@v4
+        if: ${{ inputs.wants-h402 == true }}
         with:
           name: h402-dist
           path: typescript/packages/h402/dist
 
       - uses: actions/download-artifact@v4
+        if: ${{ inputs.wants-h402 == true }}
         with:
           name: h402-node_modules
           path: typescript/packages/h402/node_modules
-
-      - run: |
-          #!/bin/bash
-
-          LIBRARIES="${{ inputs.libraries }}"
-          echo "${{ inputs.libraries }}" | \
-          jq -c '.[]' | \
-          while read -r library; do
-            gh run download \
-              ${{ github.run_id }} \
-              -n "${library}-dist" \
-              --dir typescript/packages/$library/dist
-
-            gh run download \
-              ${{ github.run_id }} \
-              -n "${library}-node_modules" \
-              --dir "typescript/packages/${library}/node_modules"
-
-            gh run download \
-              ${{ github.run_id }} \
-              -n "${library}-dist" \
-              --dir "typescript/packages/${library}/dist"
-          done
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - uses: pnpm/action-setup@v4
         with:
