@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - run: |
-          #!/bin/bash
+          #!/bin/bash -ex
           sudo apt-get update
           sudo apt-get install -y gh
 
@@ -38,7 +38,7 @@ jobs:
           path: typescript/packages/h402/node_modules
 
       - run: |
-          #!/bin/bash
+          #!/bin/bash -ex
 
           echo '${{ inputs.libraries }}' | \
           jq -c '.[]' | \
@@ -46,17 +46,12 @@ jobs:
             gh run download \
               ${{ github.run_id }} \
               -n "${library}-dist" \
-              --dir typescript/packages/$library/dist
+              --dir "typescript/packages/${library}/dist"
 
             gh run download \
               ${{ github.run_id }} \
               -n "${library}-node_modules" \
               --dir "typescript/packages/${library}/node_modules"
-
-            gh run download \
-              ${{ github.run_id }} \
-              -n "${library}-dist" \
-              --dir "typescript/packages/${library}/dist"
           done
         env:
           GH_TOKEN: ${{ github.token }}

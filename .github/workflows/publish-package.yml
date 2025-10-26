@@ -87,7 +87,7 @@ jobs:
     
     steps:
       - run: |
-          #!/bin/bash
+          #!/bin/bash -ex
           sudo apt-get update
           sudo apt-get install -y gh
 
@@ -96,7 +96,7 @@ jobs:
           fetch-depth: 1
 
       - run: |
-          #!/bin/bash
+          #!/bin/bash -ex
 
           echo '${{ fromJson(needs.get-libraries.outputs.matrix) }}' | \
           jq -c '.[]' | \
