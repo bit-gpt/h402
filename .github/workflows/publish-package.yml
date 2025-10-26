@@ -36,6 +36,10 @@ jobs:
       matrix: ${{ steps.output.outputs.matrix }}
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - id: output
         run: |
           #!/bin/bash
