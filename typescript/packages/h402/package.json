@@ -8,7 +8,10 @@
   "scripts": {
     "build": "tsc && pnpm run build:paywall && tsc",
     "build:paywall": "pnpm --filter 'paywall-app' i && pnpm --filter 'paywall-app' build && node ../../../scripts/build-paywall.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -98,6 +101,8 @@
   ],
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@vitest/coverage-v8": "4.0.8",
+    "vitest": "^4.0.8",
     "zod": "^3.25.49"
   },
   "dependencies": {

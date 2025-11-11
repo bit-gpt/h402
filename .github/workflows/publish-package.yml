@@ -25,7 +25,11 @@ on:
       - 'typescript/packages/h402-hono/**'
       - 'typescript/packages/h402-proxy/**'
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   build-h402:
+    needs: [test]
     uses: ./.github/workflows/build-library.yml
     with:
       name: h402
